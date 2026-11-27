@@ -8,8 +8,8 @@ export const DB_NAME = "dongnam-running";
 export const mode = process.argv.includes("--local") ? "--local" : "--remote";
 
 function wrangler(args) {
-  const r = spawnSync("npx", ["wrangler", "d1", "execute", DB_NAME, mode, ...args], {
-    cwd: root, shell: true, encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
+  const r = spawnSync(process.execPath, [path.join(root, "node_modules/wrangler/bin/wrangler.js"), "d1", "execute", DB_NAME, mode, ...args], {
+    cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? "dfe9c40978c7cc88bae59830f95dd3cc" },
   });
   if (r.status !== 0) throw new Error((r.stderr || r.stdout || "wrangler failed").slice(0, 1500));
@@ -17,7 +17,7 @@ function wrangler(args) {
 }
 
 export function query(sql) {
-  const out = wrangler(["--json", "--command", `"${sql.replace(/"/g, "'")}"`]);
+  const out = wrangler(["--json", "--command", sql]);
   return JSON.parse(out.slice(out.indexOf("[")))[0].results;
 }
 

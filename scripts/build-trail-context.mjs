@@ -4,10 +4,11 @@
 //  - 거리 = 점(신호제어기·횡단보도) 또는 경사 구간의 양 끝점·중점 3점 각각에서 산책로 선분까지의 최소 거리. 500m 이내면 구간 전체를 보존한다(절단하지 않음).
 //  - 경사 원본은 다른 세션이 적재한 외부 표(읽기만 함).
 // 실행: node scripts/build-trail-context.mjs
-// 출력: public/data/haeundae/trail-context.json, db/pending/20261128_trail_context.sql(쿼터 초기화 후 db:apply --pending)
+// 출력: public/data/haeundae/trail-context.json, db/pending/20261128_trail_context_<버전>_<해시>.sql(기본은 계획 확인, 적용은 --pending --apply)
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
 import { root, query } from "./db-lib.mjs";
+import { writePendingSnapshot } from './db-migration-lib.mjs';
 import { readHaeundaeSignals, clusterCrosswalks } from "./hd-data.mjs";
 import { toXY } from "./lib-geo.mjs";
 
@@ -108,5 +109,5 @@ chunk(keepSignals, (s) => `(${[s.id, q(s.mgmt), q(s.place), q(s.kind), s.lon, s.
 chunk(keepCross, (c) => `(${[c.id, q(c.name), c.lon, c.lat, c.d, c.trail, c.primary].join(",")})`, "trail_context_crosswalk", "crosswalk_id,name,lon,lat,distance_m,nearest_trail_id,is_primary");
 chunk(keepSlope, (r) => `(${[r.id, r.a[0], r.a[1], r.b[0], r.b[1], r.grade, r.len, r.d, r.trail].join(",")})`, "trail_context_slope", "segment_id,start_lon,start_lat,end_lon,end_lat,grade_pct,length_m,distance_m,nearest_trail_id");
 await mkdir(path.join(root, "db/pending"), { recursive: true });
-await writeFile(path.join(root, "db/pending/20261128_trail_context.sql"), sql.join("\n") + "\n");
-console.log(JSON.stringify(meta.counts), "→ public/data/haeundae/trail-context.json, db/pending/20261128_trail_context.sql");
+const pendingFile = writePendingSnapshot(root, '20261128_trail_context', sql.join("\n") + "\n");
+console.log(JSON.stringify(meta.counts), "→ public/data/haeundae/trail-context.json, " + pendingFile);

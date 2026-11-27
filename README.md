@@ -103,7 +103,7 @@ npm run cf:whoami
   - 경사는 `v_slope_grade10` 뷰로만 쓰고 출처를 `src_dataset`에 등록했습니다(30m 해상도 DEM을 28m 이하 구간에 적용해 오차가 크고 최대 85.7%는 이상치 가능 → 참고용).
   - 시드는 자기 소유 표와 자기 출처 행만 지웁니다(이전에는 `src_dataset` 전체를 지웠음).
   - 신호등과 경사는 키가 없고 조인하지 않습니다.
-- 명령: `npm run db:apply`(스키마·등록부 적용, 반복 실행 가능) · `npm run db:check`(무결성·영역 점검) · `npm run db:build`(시드 SQL 생성). 시드 적재: `npx wrangler d1 execute dongnam-running --remote --file=db/generated/seed.sql --yes`.
+- 명령: `npm run db:apply -- --local --dry-run`(읽기 전용 계획) · `npm run db:apply -- --local --apply`(스키마·등록부 적용) · `npm run db:check -- --local`(무결성 점검) · `npm run db:build`(시드 SQL 생성). 원격 대상은 `--remote`로 명시합니다. 실제 쓰기는 `--apply`가 있어야 합니다. 시드 직접 적재는 이 해시·재개 보호를 거치지 않으므로 백업과 로컬 검증이 먼저입니다. [추가 데이터·10만 행 대응 절차](docs/db-growth.md).
 
 ### 코스 현황 (9개)
 
@@ -123,7 +123,8 @@ npm run cf:whoami
 
 자세한 규칙·한계는 [docs/trail-context.md](docs/trail-context.md). 요약:
 - `public/data/trails/`: 부울경 OSM 산책로·산길 벡터 조각(수집·변환은 `scripts/fetch-trails.mjs`, `fetch-boundaries.mjs`, `build-trails.mjs`). 수집이 오래 걸려 `index.json`의 통계로 완료 여부를 확인합니다.
+- `npm run deploy`는 먼저 `npm run data:check`를 실행합니다. 산책로가 없거나 부분 수집·해시 불일치가 있으면 배포를 중단합니다. `npm run build`는 배포하지 않는 Worker 빌드 확인이며 데이터 완성 여부와 별개입니다.
 - `public/data/haeundae/trail-context.json`: 해운대 산책로 선분 기준 500m 이내 신호제어기·횡단보도·경사 구간.
 - `GET /api/weather`: 해운대 구역별 러닝 날씨 판정(Open-Meteo). 빈·오래된 응답은 판정 불가로 제외.
-- D1 새 표(`haeundae_trail`, `trail_context_*`)는 `node scripts/db-apply.mjs --pending`으로 적재했습니다(무료 쓰기 한도 주의, docs/trail-context.md).
+- D1 새 표(`haeundae_trail`, `trail_context_*`)는 기존 적재 완료 상태입니다. 이후에는 `npm run db:apply -- --remote --pending --dry-run`으로 계획부터 확인하고, 새 버전 SQL·SHA256 검사·명시적 적용 절차를 따릅니다([docs/db-growth.md](docs/db-growth.md)).
 - Android·삼성헬스(Health Connect 읽기 전용 모듈)는 Codex가 `android/`, `docs/android-health-connect.md`에서 진행 중입니다.

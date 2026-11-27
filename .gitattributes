@@ -1,0 +1,3 @@
+# Migration checksums must stay identical across Windows and Android/Linux development machines.
+db/migrations/*.sql text eol=lf
+db/pending/*.sql text eol=lf

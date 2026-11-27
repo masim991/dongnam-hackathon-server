@@ -185,7 +185,8 @@ CREATE TABLE IF NOT EXISTS crosswalk_signal_link (
 -- 13) 마이그레이션 기록(한 번만 실행되는 구조 변경)
 CREATE TABLE IF NOT EXISTS schema_migration (
   id TEXT PRIMARY KEY,
-  applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  sha256 TEXT                         -- 기존 기록은 명시적 baseline 전까지 NULL
 );
 
 -- 14) 해운대 산책로 기준 500m 이내 상세(신호제어기·횡단보도·경사). 정의는 docs/trail-context.md
