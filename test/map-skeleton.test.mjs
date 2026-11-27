@@ -2,11 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { indexSlopes, matchSlopes } from "../public/map/slope-match.js";
 import { CONFIG, THEME, applyTheme } from "../public/map/theme.js";
 
 // Execute the real page module with deterministic DOM/map/network adapters, without WebGL or health records.
 const source = readFileSync(new URL("../public/map/app.js", import.meta.url), "utf8")
-  .replace(/^import .* from '\.\/theme\.js';\r?\n/m, "");
+  .replace(/^import .* from '\.\/theme\.js';\r?\n/m, "")
+  .replace(/^import .* from '\.\/slope-match\.js';\r?\n/m, "");
 const html = readFileSync(new URL("../public/map/index.html", import.meta.url), "utf8");
 const flush = async () => { for (let i = 0; i < 5; i++) await new Promise(setImmediate); };
 
@@ -36,6 +38,7 @@ function boot({ bridge, search = "", styleStatus = 200, courses = [], get } = {}
     on(name, ...args) { this.handlers[name] = args.at(-1); }
     addSource(id, spec) { this.sources.set(id, { data: spec.data, setData(data) { this.data = data; } }); }
     addLayer() {}
+    getStyle() { return { layers: [] }; }
     getSource(id) { return this.sources.get(id); }
     fitBounds() {}
     setLayoutProperty() {}
@@ -43,7 +46,7 @@ function boot({ bridge, search = "", styleStatus = 200, courses = [], get } = {}
   class BoundsStub { extend() {} isEmpty() { return false; } }
   const window = { innerWidth: 1024, AndroidHealth: bridge };
   const context = vm.createContext({
-    window, document, location: { search }, URLSearchParams, CONFIG, THEME,
+    window, document, location: { search }, URLSearchParams, CONFIG, THEME, indexSlopes, matchSlopes,
     applyTheme: () => applyTheme(document.documentElement),
     maplibregl: { Map: MapStub, LngLatBounds: BoundsStub },
     get map() { return window.map; },
@@ -148,4 +151,52 @@ test("native action failures are shown and valid summaries keep zero distinct fr
   assert.match(app.elements.healthInfo.textContent, /걸음 수 0보/);
   assert.match(app.elements.healthInfo.textContent, /이동거리 0km/);
   assert.doesNotMatch(app.elements.healthInfo.textContent, /공유된 기록 없음/);
+});
+
+const origin = [129.17, 35.17];
+const point = (x, y = 0) => [origin[0] + x / (111320 * Math.cos(origin[1] * Math.PI / 180)), origin[1] + y / 111320];
+const path = (a = 0, b = 100, properties = {}) => ({ type: "Feature", properties, geometry: { type: "LineString", coordinates: [point(a), point(b)] } });
+const incline = (id, a, b, grade = 12) => ({ id, a, b, grade });
+
+test("slope overlay clips to the actual trail and does not color perpendicular or parallel neighboring roads", () => {
+  const grid = indexSlopes([
+    incline(1, point(20, 1), point(40, 1)),
+    incline(2, point(50, -10), point(50, 10), 45),
+    incline(3, point(60, 10), point(80, 10), 30),
+    incline(4, point(110), point(130), 20),
+  ]);
+  const result = matchSlopes([path()], grid);
+  assert.equal(result.features.length, 1);
+  const f = result.features[0];
+  assert.equal(f.properties.id, 1);
+  assert.ok(Math.abs(f.properties.len - 20) < 0.01);
+  assert.ok(f.geometry.coordinates.every((p) => Math.abs(p[1] - origin[1]) < 1e-10));
+});
+
+test("overlapping slopes do not double-count length; reversed coordinates work and synthetic gap bridges stay uncolored", () => {
+  const grid = indexSlopes([incline(1, point(10), point(50)), incline(2, point(60), point(30), -25)]);
+  const result = matchSlopes([path()], grid);
+  assert.ok(Math.abs(result.features.reduce((n, f) => n + f.properties.len, 0) - 50) < 0.01);
+  assert.equal(Math.max(...result.features.map((f) => f.properties.grade)), 25);
+  assert.equal(matchSlopes([path(0, 100, { highway: "gap_bridge" })], grid).features.length, 0);
+  assert.equal(matchSlopes([path()], indexSlopes([])).features.length, 0);
+});
+
+test("turning trails off rejects an outstanding tile request", async (t) => {
+  let release;
+  const app = boot({ get: (url) => url.startsWith("/data/trails/") ? new Promise((resolve) => { release = () => resolve(Response.json({ trails: [{ i: 1, g: [point(0), point(20)] }] })); }) : undefined });
+  t.after(app.close); await flush(); app.loadMap();
+  app.window.map.getZoom = () => 14;
+  app.window.map.getBounds = () => ({ getSouth: () => 35.17, getNorth: () => 35.18, getWest: () => 129.17, getEast: () => 129.18 });
+  app.elements.lyTrails.checked = true; app.elements.lyTrails.handlers.change(); await flush();
+  app.elements.lyTrails.checked = false; app.elements.lyTrails.handlers.change(); release(); await flush();
+  assert.equal(app.window.map.getSource("trails").data.features.length, 0);
+});
+
+test("a slope option selected before map load is applied when the map becomes ready", async (t) => {
+  const app = boot(); t.after(app.close); await flush();
+  app.elements.lySlope.checked = true;
+  app.loadMap(); await flush();
+  assert.match(app.elements.slopeStatus.textContent, /추정값/);
+  assert.ok(app.requests.includes("/data/haeundae/trail-context.json"));
 });

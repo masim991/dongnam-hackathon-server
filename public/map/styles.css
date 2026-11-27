@@ -87,3 +87,14 @@ html, body, #map { margin: 0; height: 100%; }
 .sw-bridge { --sw: var(--c-bridge); }
 .sw-issue { --sw: var(--c-issueFill); border: 2px solid var(--c-issueStroke); }
 .sw-entrance { --sw: var(--c-white); border: 2px solid var(--c-ink); }
+
+/* 경사는 길 위의 짧은 선으로 표시하고 점 마커와 구분한다. */
+.slope-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+#layers .note { font-size: 12px; }
+.sw.line { width: 18px; height: 3px; border-radius: 0; vertical-align: 3px; }
+.sw-slope-low { --sw: var(--c-slopeLow); }
+.sw-slope-moderate { --sw: var(--c-slopeModerate); }
+.sw-slope-mid { --sw: var(--c-slopeMid); }
+.sw-slope-high { --sw: var(--c-slopeHigh); }
+.sw.line.sw-nearby { background: none; border-top: 2px dashed var(--c-nearby); }
+.layer-option:focus-within { outline: var(--focus-ring); outline-offset: 2px; }

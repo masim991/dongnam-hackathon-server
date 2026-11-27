@@ -1,5 +1,6 @@
 // 지도 화면 로직. 색·지도 설정은 theme.js, 모양은 styles.css, 마크업은 index.html. 설명서: docs/frontend-design-guide.md
 import { CONFIG, THEME, applyTheme } from './theme.js';
+import { indexSlopes, matchSlopes } from './slope-match.js';
 applyTheme();
 const KIND_LABEL = { trail: '산책로', riverside: '강변길', road_proxy: '차도 기준 근사' };
 const OSM_KIND_LABEL = { signal: '신호', signal_junction: '교차로 신호기', uncontrolled: '무신호', marked: '표시 횡단', unmarked: '표시 없음', unknown: '미분류' };
@@ -14,6 +15,7 @@ function koreanOnly(style) {
   return style;
 }
 
+const slopeColor = ['step', ['get', 'grade'], THEME.slopeLow, 15, THEME.slopeModerate, 20, THEME.slopeMid, 40, THEME.slopeHigh];
 const EMPTY = { type: 'FeatureCollection', features: [] };
 let resolveMapReady;
 const mapReady = new Promise((r) => { resolveMapReady = r; }); // 지도 준비 전에 파일을 골라도 준비되면 이어서 처리한다
@@ -48,17 +50,21 @@ function initCourses() {
   map.addSource('signals', { type: 'geojson', data: EMPTY });
   map.addSource('trails', { type: 'geojson', data: EMPTY });
   map.addSource('slope', { type: 'geojson', data: EMPTY });
+  map.addSource('nearbySlope', { type: 'geojson', data: EMPTY });
+  const labelLayer = map.getStyle().layers.find((l) => l.type === 'symbol')?.id;
   map.addLayer({ id: 'trails', type: 'line', source: 'trails', minzoom: 12, layout: { 'line-cap': 'round' },
-    paint: { 'line-color': ['match', ['get', 'kind'], 'steps', THEME.trailSteps, 'track', THEME.trailTrack, 'cycleway', THEME.trailCycleway, THEME.trail], 'line-width': 2, 'line-opacity': 0.8 } });
+    paint: { 'line-color': THEME.trail, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1, 16, 2.5], 'line-opacity': 0.65 } }, labelLayer);
   map.addLayer({ id: 'slope', type: 'line', source: 'slope', minzoom: 13, layout: { visibility: 'none' },
-    paint: { 'line-color': ['interpolate', ['linear'], ['get', 'grade'], 10, THEME.slopeLow, 20, THEME.slopeMid, 40, THEME.slopeHigh], 'line-width': 3 } });
+    paint: { 'line-color': slopeColor, 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 2, 17, 3.5] } }, labelLayer);
+  map.addLayer({ id: 'nearby-slope', type: 'line', source: 'nearbySlope', minzoom: 15, layout: { visibility: 'none' },
+    paint: { 'line-color': THEME.nearby, 'line-width': 1.5, 'line-opacity': 0.4, 'line-dasharray': [2, 2] } }, 'trails');
   map.addLayer({ id: 'signals', type: 'circle', source: 'signals', minzoom: 14,
     paint: { 'circle-radius': 5, 'circle-color': THEME.controller, 'circle-opacity': 0.8, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
   map.addSource('course', { type: 'geojson', data: EMPTY });
   map.addLayer({ id: 'xwalk', type: 'circle', source: 'xwalk', minzoom: 15,
     paint: { 'circle-radius': 4, 'circle-color': THEME.crosswalk, 'circle-opacity': 0.55, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
   map.addLayer({ id: 'course-line', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['!=', ['get', 'highway'], 'gap_bridge']],
-    layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': THEME.course, 'line-width': 4 } });
+    layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': THEME.course, 'line-width': 4 } }, labelLayer);
   // 끊긴 곳을 잇기 위해 추가한 연결선(실제 보행 가능 여부는 현장 확인 필요)
   map.addLayer({ id: 'course-bridge', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['==', ['get', 'highway'], 'gap_bridge']],
     paint: { 'line-color': THEME.bridge, 'line-width': 3, 'line-dasharray': [1.5, 1.5] } });
@@ -66,12 +72,12 @@ function initCourses() {
     paint: { 'circle-radius': 8, 'circle-color': THEME.issueFill, 'circle-stroke-color': THEME.issueStroke, 'circle-stroke-width': 3 } });
   map.addSource('courseSlope', { type: 'geojson', data: EMPTY });
   map.addSource('courseCtrl', { type: 'geojson', data: EMPTY });
-  map.addLayer({ id: 'course-slope', type: 'line', source: 'courseSlope', layout: { 'line-cap': 'round' },
-    paint: { 'line-color': ['interpolate', ['linear'], ['get', 'grade'], 10, THEME.slopeLow, 20, THEME.slopeMid, 40, THEME.slopeHigh], 'line-width': 7, 'line-opacity': 0.9 } }, 'course-line');
+  map.addLayer({ id: 'course-slope', type: 'line', source: 'courseSlope', minzoom: 13, layout: { 'line-cap': 'round' },
+    paint: { 'line-color': slopeColor, 'line-width': 4, 'line-opacity': 1 } }, labelLayer);
   map.addLayer({ id: 'course-ctrl', type: 'circle', source: 'courseCtrl', paint: { 'circle-radius': 6, 'circle-color': THEME.controller, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
   map.on('click', 'course-slope', (e) => {
     const p = e.features[0].properties;
-    new maplibregl.Popup().setLngLat(e.lngLat).setText('경사 ' + Number(p.signed).toFixed(1) + '% · 구간 ' + Number(p.len).toFixed(0) + 'm · 코스에서 ' + p.d + 'm (30m DEM 기반 추정, 오차 큼)').addTo(map);
+    new maplibregl.Popup().setLngLat(e.lngLat).setText('경사 ' + Number(p.grade).toFixed(1) + '% · 구간 ' + Number(p.len).toFixed(0) + 'm (선형 정합 추정 · 30m DEM, 오차 큼)').addTo(map);
   });
   map.on('click', 'course-ctrl', (e) => {
     const p = e.features[0].properties;
@@ -122,7 +128,16 @@ function initCourses() {
   map.on('moveend', loadTrailsInView);
   $('lyTrails').addEventListener('change', loadTrailsInView);
   $('lySlope').addEventListener('change', toggleSlope);
+  $('lyNearbySlope').addEventListener('change', toggleSlope);
+  for (const id of ['slope', 'nearby-slope']) map.on('click', id, (e) => {
+    const p = e.features[0].properties;
+    new maplibregl.Popup().setLngLat(e.lngLat).setText('경사 크기 ' + Number(p.grade).toFixed(1) + '% · ' + Number(p.len).toFixed(0) + 'm · ' + (id === 'slope' ? '산책로 선형 정합 추정' : '주변 원본 구간, 같은 길 확인 안 됨') + ' (30m DEM 추정)').addTo(map);
+  });
   $('lyIssues').addEventListener('change', toggleIssues);
+  // 타일 로딩 전에 선택한 옵션도 지도 준비 후 적용한다.
+  if ($('lyTrails').checked) loadTrailsInView();
+  if ($('lySlope').checked || $('lyNearbySlope').checked) toggleSlope();
+  if ($('lyIssues').checked) toggleIssues();
 }
 
 // 코스 목록은 지도 타일 로딩과 무관하므로 지도 load 를 기다리지 않고 바로 받는다.
@@ -240,15 +255,23 @@ function loadWeather() {
 
 // ---- 부울경 산책로·산길 벡터 조각(0.1° 칸) ----
 const trailCache = new Map();
+let trailRequest = 0, visibleTrails = EMPTY;
 function trailCell(la, lo) { return (Math.floor(la * 10) / 10).toFixed(1) + '_' + (Math.floor(lo * 10) / 10).toFixed(1); }
 function loadTrailsInView() {
   const map = window.map;
-  if (!$('lyTrails').checked || map.getZoom() < 12) { map.getSource('trails').setData(EMPTY); return; }
+  const request = ++trailRequest;
+  if (!$('lyTrails').checked || map.getZoom() < 12) { visibleTrails = EMPTY; map.getSource('trails').setData(EMPTY); map.getSource('slope').setData(EMPTY); return; }
   const b = map.getBounds(), keys = [];
   for (let la = Math.floor(b.getSouth() * 10) / 10; la <= b.getNorth(); la += 0.1) for (let lo = Math.floor(b.getWest() * 10) / 10; lo <= b.getEast(); lo += 0.1) keys.push(trailCell(la + 1e-6, lo + 1e-6));
   const uniq = [...new Set(keys)].slice(0, 12);
-  Promise.all(uniq.map((k) => trailCache.get(k) ?? getJson('/data/trails/' + k + '.json').catch(() => ({ trails: [] })).then((j) => { trailCache.set(k, j); return j; })))
-    .then((parts) => map.getSource('trails').setData({ type: 'FeatureCollection', features: parts.flatMap((p) => p.trails).map((t) => ({ type: 'Feature', properties: { name: t.n || '', kind: t.k, region: t.r }, geometry: { type: 'LineString', coordinates: t.g } })) }));
+  Promise.all(uniq.map((k) => trailCache.get(k) ?? getJson('/data/trails/' + k + '.json').then((j) => { trailCache.set(k, j); return j; }).catch(() => ({ trails: [] }))))
+    .then((parts) => {
+      if (request !== trailRequest) return;
+      const unique = new Map(parts.flatMap((p) => p.trails).map((t) => [t.i, t]));
+      visibleTrails = { type: 'FeatureCollection', features: [...unique.values()].map((t) => ({ type: 'Feature', properties: { id: t.i, name: t.n || '', kind: t.k, region: t.r }, geometry: { type: 'LineString', coordinates: t.g } })) };
+      map.getSource('trails').setData(visibleTrails);
+      refreshSlope();
+    });
 }
 
 // ---- 해운대 산책로 위상 문제(끊김·회전교차로·교차) 표시 ----
@@ -265,16 +288,28 @@ function toggleIssues() {
 }
 
 // ---- 해운대 산책로 500m 이내 경사(10% 이상) ----
-let slopeLoaded = false;
-function toggleSlope() {
+let slopeGrid;
+function refreshSlope() {
   const map = window.map;
-  if (!$('lySlope').checked) { map.setLayoutProperty('slope', 'visibility', 'none'); return; }
-  map.setLayoutProperty('slope', 'visibility', 'visible');
-  if (slopeLoaded) return;
-  getJson('/data/haeundae/trail-context.json').then((j) => {
-    slopeLoaded = true;
-    map.getSource('slope').setData({ type: 'FeatureCollection', features: j.slope.map((s) => ({ type: 'Feature', properties: { grade: Math.abs(s.grade) }, geometry: { type: 'LineString', coordinates: [s.a, s.b] } })) });
-  }).catch(() => { $('lySlope').checked = false; });
+  if (!slopeGrid || !$('lySlope').checked) { map.getSource('slope').setData(EMPTY); return; }
+  const matched = matchSlopes(visibleTrails.features, slopeGrid);
+  map.getSource('slope').setData({ type: 'FeatureCollection', features: matched.features });
+}
+async function toggleSlope() {
+  const map = window.map;
+  map.setLayoutProperty('slope', 'visibility', $('lySlope').checked ? 'visible' : 'none');
+  map.setLayoutProperty('nearby-slope', 'visibility', $('lyNearbySlope').checked ? 'visible' : 'none');
+  if (!$('lySlope').checked && !$('lyNearbySlope').checked) return;
+  $('slopeStatus').textContent = '경사 구간 불러오는 중…';
+  try {
+    const j = await loadContext();
+    slopeGrid ??= indexSlopes(j.slope);
+    map.getSource('nearbySlope').setData({ type: 'FeatureCollection', features: j.slope.map((s) => ({ type: 'Feature', properties: { grade: Math.abs(s.grade), len: s.len }, geometry: { type: 'LineString', coordinates: [s.a, s.b] } })) });
+    refreshSlope();
+    $('slopeStatus').textContent = '색 선은 산책로와 선형이 맞는 구간의 추정값입니다. 주변 원본은 회색 점선으로 별도 표시합니다.';
+  } catch {
+    $('slopeStatus').textContent = '경사를 불러오지 못했습니다. 체크를 껐다 켜서 다시 시도하세요.';
+  }
 }
 
 // ---- 삼성헬스 GPX 불러오기: 파일은 브라우저 안에서만 읽고 서버로 보내지 않는다 ----
@@ -394,8 +429,8 @@ $('gpxClear').addEventListener('click', () => mapReady.then((ready) => {
 
 // ---- 선택한 코스 기준 상세: 경사 10%↑ 구간과 신호제어기·횡단보도 ----
 let contextPromise;
-const loadContext = () => (contextPromise ??= getJson('/data/haeundae/trail-context.json'));
-const CS_SLOPE_M = 30, CS_SIGNAL_M = 100;
+const loadContext = () => (contextPromise ??= getJson('/data/haeundae/trail-context.json').catch((err) => { contextPromise = undefined; throw err; }));
+const CS_SIGNAL_M = 100;
 function pointToLineM(p, lines) {
   let best = Infinity;
   const kx = 111320 * Math.cos(p[1] * Math.PI / 180), ky = 111320;
@@ -420,25 +455,22 @@ async function showCourseDetail(fc, selection) {
   let ctx;
   try { ctx = await loadContext(); } catch { return; }
   if (selection !== courseSelection) return;
-  const slope = [];
-  for (const s of ctx.slope) {
-    const mid = [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2];
-    const d = pointToLineM(mid, lines);
-    if (d <= CS_SLOPE_M) slope.push({ ...s, d: Math.round(d) });
-  }
+  slopeGrid ??= indexSlopes(ctx.slope);
+  const slope = matchSlopes(fc.features.filter((f) => f.properties.layer === 'course'), slopeGrid).features;
   const ctrl = [];
   for (const s of ctx.signals) { const d = pointToLineM([s.lon, s.lat], lines); if (d <= CS_SIGNAL_M) ctrl.push({ ...s, d: Math.round(d) }); }
-  map.getSource('courseSlope').setData({ type: 'FeatureCollection', features: slope.map((s) => ({ type: 'Feature', properties: { grade: Math.abs(s.grade), signed: s.grade, len: s.len, d: s.d }, geometry: { type: 'LineString', coordinates: [s.a, s.b] } })) });
+  map.getSource('courseSlope').setData({ type: 'FeatureCollection', features: slope });
   map.getSource('courseCtrl').setData({ type: 'FeatureCollection', features: ctrl.map((s) => ({ type: 'Feature', properties: { place: s.place, d: s.d }, geometry: { type: 'Point', coordinates: [s.lon, s.lat] } })) });
 
   const add = (tag, text) => { const el = document.createElement(tag); el.textContent = text; box.appendChild(el); return el; };
-  add('h2', '경사 (코스에서 ' + CS_SLOPE_M + 'm 이내, 10% 이상)');
+  add('h2', '코스 선형에 맞춘 경사 (10% 이상, 추정)');
   if (!slope.length) add('p', '해당 구간이 없습니다. (경사 원본이 30m 해상도 DEM 기반이라 완만하다는 뜻은 아닙니다)');
   else {
-    const total = slope.reduce((s, x) => s + x.len, 0), max = slope.reduce((m, x) => (Math.abs(x.grade) > Math.abs(m.grade) ? x : m));
-    add('p', slope.length + '곳 · 합 ' + Math.round(total) + 'm · 최대 ' + Math.abs(max.grade).toFixed(1) + '% (오르막/내리막은 점 방향에 따라 부호가 달라 크기만 표시). 추정값으로 오차가 큽니다.');
+    const estimates = slope.map((f) => f.properties);
+    const total = estimates.reduce((s, x) => s + x.len, 0), max = estimates.reduce((m, x) => (Math.abs(x.grade) > Math.abs(m.grade) ? x : m));
+    add('p', '정합 구간 합 ' + Math.round(total) + 'm · 최대 ' + Math.abs(max.grade).toFixed(1) + '% (오르막/내리막은 점 방향에 따라 부호가 달라 크기만 표시). 추정값으로 오차가 큽니다.');
     const ul = add('ul', '');
-    for (const x of [...slope].sort((a, b) => Math.abs(b.grade) - Math.abs(a.grade)).slice(0, 5)) {
+    for (const x of [...estimates].sort((a, b) => Math.abs(b.grade) - Math.abs(a.grade)).slice(0, 5)) {
       const li = document.createElement('li'); li.textContent = Math.abs(x.grade).toFixed(1) + '% · ' + x.len.toFixed(0) + 'm'; ul.appendChild(li);
     }
   }

@@ -22,12 +22,14 @@ export const THEME = {
   issueStroke: '#b54708',     // 코스 선형 문제 마커 테두리
   gapMarker: '#f04438',       // 산책로 끊김 표시
   roundabout: '#7a5af8',      // 회전교차로 고리 표시
-  // 경사(10%↑) 색 단계: 10% → 20% → 40%
-  slopeLow: '#fdb022',
+  // 경사 크기: 10~15 / 15~20 / 20~40 / 40% 이상
+  slopeLow: '#b7791f',
+  slopeModerate: '#c65d16',
+  nearby: '#667085',
   slopeMid: '#f04438',
   slopeHigh: '#7a271a',
   // 부울경 산책로·산길 벡터 종류별
-  trail: '#2e7d32',
+  trail: '#567064',
   trailSteps: '#9e77ed',
   trailTrack: '#a15c07',
   trailCycleway: '#0e9384',
