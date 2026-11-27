@@ -5,6 +5,7 @@
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { cleanWays } from "./topology-lib.mjs";
 import { SCOPE_GU, readHaeundaeSignals, clusterCrosswalks, linkSignals, buildChecks } from "./hd-data.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -14,6 +15,8 @@ const OSM_CROSS_PATH = path.join(root, "data/raw/osm_haeundae_crossings.json"); 
 const OSM_IDS_PATH = path.join(root, "data/raw/osm_haeundae_pathways.json"); // wayIds로 지정한 경로(OSM)
 const OUT_DIR = path.join(root, "db/generated");
 
+// --courses-only: 코스에서 파생된 표만 다시 만든다(횡단보도·신호제어기 등 큰 표는 건드리지 않아 D1 쓰기 한도를 아낀다).
+const COURSES_ONLY = process.argv.includes("--courses-only");
 const BUFFER_M = 20; // 코스에서 이 거리 안의 횡단보도를 코스 위 신호로 본다
 const MERGE_M = 12; // 이 거리 안의 점은 같은 건널목으로 합쳐 센다
 const DATASET_ID = "busan-crosswalk-20250423";
@@ -184,7 +187,9 @@ const report = { builtAt, scope: SCOPE_GU, bufferM: BUFFER_M, mergeM: MERGE_M, c
 const sql = [];
 const emit = (s) => sql.push(s);
 
-emit("DELETE FROM crosswalk_signal_link;\nDELETE FROM crosswalk_cluster;\nDELETE FROM busan_signal;\nDELETE FROM data_check;\nDELETE FROM course_entrance;\nDELETE FROM course_crossing_summary;\nDELETE FROM course_osm_crossing;\nDELETE FROM osm_crossing;\nDELETE FROM course_crosswalk;\nDELETE FROM course_way;\nDELETE FROM course;\nDELETE FROM busan_crosswalk;\nDELETE FROM src_dataset WHERE id IN ('" + DATASET_ID + "', '" + OSM_DATASET_ID + "', '" + SIGNAL_DATASET_ID + "');");
+if (COURSES_ONLY) emit("DELETE FROM course_issue;\nDELETE FROM course_entrance;\nDELETE FROM course_crossing_summary;\nDELETE FROM course_osm_crossing;\nDELETE FROM course_crosswalk;\nDELETE FROM course_way;\nDELETE FROM course;");
+if (!COURSES_ONLY) emit("DELETE FROM course_issue;\nDELETE FROM crosswalk_signal_link;\nDELETE FROM crosswalk_cluster;\nDELETE FROM busan_signal;\nDELETE FROM data_check;\nDELETE FROM course_entrance;\nDELETE FROM course_crossing_summary;\nDELETE FROM course_osm_crossing;\nDELETE FROM osm_crossing;\nDELETE FROM course_crosswalk;\nDELETE FROM course_way;\nDELETE FROM course;\nDELETE FROM busan_crosswalk;\nDELETE FROM src_dataset WHERE id IN ('" + DATASET_ID + "', '" + OSM_DATASET_ID + "', '" + SIGNAL_DATASET_ID + "');");
+if (!COURSES_ONLY) {
 emit(`INSERT INTO src_dataset (id,name,provider,url,as_of,license,row_count,note) VALUES (${[
   q(OSM_DATASET_ID), q("OpenStreetMap 해운대구 횡단보도·신호기 노드"), q("OpenStreetMap contributors (Overpass API)"),
   q("https://www.openstreetmap.org/copyright"), q(new Date().toISOString().slice(0, 10)), q("ODbL (출처표시·동일조건)"), osmPts.length,
@@ -226,6 +231,8 @@ for (let i = 0; i < links.length; i += 100) {
   emit(`INSERT INTO data_check (subject,metric,value,note,checked_at) VALUES\n${checks.map((c) => `(${[q(c.subject), q(c.metric), q(c.value), q(c.note), q(at)].join(",")})`).join(",\n")};`);
 }
 
+}
+
 for (const def of COURSES) {
   // 우선순위: 사람이 이어 붙인 확정 경로(curatedGeometry) > OSM way ID 목록(wayIds) > 이름 규칙(match)
   let ways = def.curatedGeometry
@@ -240,6 +247,18 @@ for (const def of COURSES) {
       return min === undefined ? w : { ...w, geometry: w.geometry.filter((g) => g.lon >= min) };
     })
     .filter((w) => w.geometry.length > 1);
+  // 선형 정리: 회전교차로 고리 → 호, 끊김 → 연결선(gap_bridge), 나머지 문제는 course_issue 에 표시만(큐레이션 경로는 건너뜀)
+  let bridgeWays = [];
+  let issueRows = [];
+  if (!def.curatedGeometry) {
+    const res = cleanWays(ways.map((w) => ({ id: w.id, name: w.tags?.name ?? null, tags: w.tags ?? {}, line: w.geometry.map((g) => [g.lon, g.lat]) })));
+    ways = res.ways.map((w) => ({ id: w.id, tags: { ...w.tags, highway: w.cleaned ? "roundabout_arc" : w.tags?.highway }, geometry: w.line.map(([lon, lat]) => ({ lon, lat })) }));
+    bridgeWays = res.bridges.map((br, i) => ({ id: -1000 - i, tags: { highway: "gap_bridge" }, geometry: [br.from, br.to].map(([lon, lat]) => ({ lon, lat })), meters: br.meters }));
+    issueRows = res.issues;
+    for (const iss of issueRows) {
+      emit(`INSERT INTO course_issue (course_code,type,status,severity,lon,lat,meters,way_ids,detail) VALUES (${[q(def.code), q(iss.type), q(iss.status), q(iss.severity), +iss.at[0].toFixed(6), +iss.at[1].toFixed(6), iss.meters ?? "NULL", q(iss.ways.join(",")), q(iss.detail)].join(",")});`);
+    }
+  }
   const segs = [];
   let totalLen = 0;
   for (const w of ways) {
@@ -263,7 +282,7 @@ for (const def of COURSES) {
   emit(`INSERT INTO course (code,name,region,gu,kind,length_m,way_count,geometry_source,buffer_m,matched_points,unique_crossings,crossings_per_km,note,built_at) VALUES (${[
     q(def.code), q(def.name), q("부산"), q("해운대구"), q(def.kind), Math.round(totalLen), ways.length, q("OpenStreetMap"), BUFFER_M,
     matched.length, unique, perKm === null ? "NULL" : perKm.toFixed(2), q(note), q(builtAt)].join(",")});`);
-  for (const w of ways) {
+  for (const w of [...ways, ...bridgeWays]) {
     const coords = w.geometry.map((g) => [+g.lon.toFixed(6), +g.lat.toFixed(6)]);
     const len = Math.round(lengthOf(w.geometry.map((g) => toXY(g.lat, g.lon))));
     emit(`INSERT INTO course_way (course_code,osm_way_id,name,highway,length_m,geometry_geojson) VALUES (${[
@@ -310,6 +329,7 @@ for (const def of COURSES) {
   report.courses.push({
     entrances: entrances.map((e) => ({ lat: +e.lat.toFixed(6), lon: +e.lon.toFixed(6), nearestSignalM: e.sig, nearestOsmM: e.osm, nearestOsmKind: e.osmKind })),
     osmCrossings: osmCounts,
+    issues: issueRows.map((i) => ({ type: i.type, status: i.status, meters: i.meters ?? null })), bridges: bridgeWays.length,
     code: def.code, name: def.name, kind: def.kind, ways: ways.length, lengthM: Math.round(totalLen),
     matchedPoints: matched.length, uniqueCrossings: unique, perKm: perKm === null ? null : +perKm.toFixed(2),
     nearestCrosswalkM: Number.isFinite(nearest) ? Math.round(nearest) : null,
@@ -319,6 +339,6 @@ for (const def of COURSES) {
 }
 
 await mkdir(OUT_DIR, { recursive: true });
-await writeFile(path.join(OUT_DIR, "seed.sql"), sql.join("\n") + "\n");
+await writeFile(path.join(OUT_DIR, COURSES_ONLY ? "seed-courses.sql" : "seed.sql"), sql.join("\n") + "\n");
 await writeFile(path.join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

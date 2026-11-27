@@ -1,6 +1,8 @@
 # 동남권 이노베이션 해커톤
 
-Claude Code + Cloudflare Workers 개발·배포 기본 틀입니다. 전체 목적은 해커톤 서비스 개발이며, 현재는 개발 착수 전 서버 기반 준비 단계(완료)입니다. API 시작점만 있고 서비스 화면, DB, 사용자 인증은 요구가 정해진 뒤 추가합니다.
+부울경 러닝 지도의 Cloudflare Workers API·D1 스키마·웹 지도와 Android 연동 준비 코드를 관리합니다. 목표는 기존 지도 기능을 유지한 Android 앱입니다. 현재 `android/health-connect` 읽기 전용 라이브러리와 웹 브리지 계약까지 준비돼 있으며, 실행 가능한 `android/app` 호스트와 APK는 아직 없습니다.
+
+Android 작업은 [앱 인계 문서](docs/android-app-handoff.md), [웹 브리지 계약](docs/android-web-bridge.md), [API 명세](docs/openapi.yaml)부터 확인합니다. DB 스냅샷과 원시 데이터를 앱에 포함하지 않고 Worker의 공개 읽기 API를 사용합니다. Android SDK 설치·호스트 구현·기기 연동·출시 검증은 남아 있습니다.
 
 기능은 `src/index.ts`(필요하면 `src/` 하위로 분리)에 추가하고 테스트는 `test/`에, DB·KV 같은 바인딩은 `wrangler.jsonc`에 추가합니다.
 

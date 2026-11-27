@@ -1,0 +1,91 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 154,
+        "mgmtNo": "9296",
+        "sigungu": "해운대구",
+        "label": "그랜드호텔",
+        "roadType": "단일로"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1561666,
+          35.15880995
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 13,
+        "mgmtNo": "9034",
+        "sigungu": "해운대구",
+        "label": "글로리콘도",
+        "roadType": "단일로"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1573778,
+          35.15908682
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 8,
+        "mgmtNo": "9029",
+        "sigungu": "해운대구",
+        "label": "바다파출소",
+        "roadType": "교차로"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1608454,
+          35.15980175
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 127,
+        "mgmtNo": "9096",
+        "sigungu": "해운대구",
+        "label": "해운대맨션(직결)",
+        "roadType": "단일로"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1565491,
+          35.16024851
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 133,
+        "mgmtNo": "9265",
+        "sigungu": "해운대구",
+        "label": "파라다이스호텔",
+        "roadType": "교차로"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1660709,
+          35.16063485
+        ]
+      }
+    }
+  ],
+  "_note": "해당 영역 29개 중 5개만 표시"
+}

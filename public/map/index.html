@@ -41,6 +41,13 @@ html,body,#map{margin:0;height:100%}
     <div id="list" role="group" aria-label="코스 목록">불러오는 중…</div>
   </details>
   <p id="info" role="status" aria-live="polite"></p>
+  <details id="health" hidden>
+    <summary>삼성헬스 연동 (안드로이드 앱 전용)</summary>
+    <p>안드로이드 앱에서만 보입니다. 삼성헬스 → 헬스 커넥트에 공유된 최근 걸음 수·거리·러닝 기록을 <b>기기 안에서만</b> 읽으며 서버로 보내지 않습니다.</p>
+    <button type="button" id="healthConnect">연동 권한 요청</button>
+    <button type="button" id="healthRead">최근 7일 불러오기</button>
+    <p id="healthInfo" role="status" aria-live="polite"></p>
+  </details>
   <details id="wx">
     <summary>러닝 날씨 (해운대 구역별)</summary>
     <p id="wxSummary" role="status" aria-live="polite">불러오는 중…</p>
@@ -51,6 +58,7 @@ html,body,#map{margin:0;height:100%}
     <summary>지도 레이어</summary>
     <label><input type="checkbox" id="lyTrails"> 부울경 산책로·산길(OSM, 12단계 이상)</label>
     <label><input type="checkbox" id="lySlope"> 해운대 산책로 500m 이내 경사 10% 이상</label>
+    <label><input type="checkbox" id="lyIssues"> 해운대 산책로 끊김·회전교차로·교차 이상 표시(OSM)</label>
   </details>
   <details id="myrun">
     <summary>내 러닝 기록 불러오기 (삼성헬스 GPX)</summary>
@@ -64,6 +72,8 @@ html,body,#map{margin:0;height:100%}
     <li><i style="background:#d92d20"></i>신호등 있는 횡단보도(부산시 공공데이터)</li>
     <li><i style="background:#1570ef"></i>신호제어기(교차로 단위, 14단계 이상 확대 시)</li>
     <li><i style="background:#f79009"></i>OSM 신호 횡단(참고)</li>
+    <li><i style="background:#fef0c7;border:2px solid #b54708;box-sizing:border-box"></i>코스 선형 문제(눌러서 처리 내용 보기)</li>
+    <li><i style="background:#dc6803"></i>끊긴 곳을 잇는 점선 연결선</li>
     <li><i style="background:#667085"></i>OSM 무신호·미분류 횡단(참고)</li>
     <li><i style="background:#fff;border:2px solid #101828;box-sizing:border-box"></i>코스 출입구(누르면 가장 가까운 횡단까지 거리)</li>
   </ul>
@@ -125,8 +135,16 @@ function initCourses() {
   map.addSource('course', { type: 'geojson', data: EMPTY });
   map.addLayer({ id: 'xwalk', type: 'circle', source: 'xwalk', minzoom: 15,
     paint: { 'circle-radius': 4, 'circle-color': '#d92d20', 'circle-opacity': 0.55, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
-  map.addLayer({ id: 'course-line', type: 'line', source: 'course', filter: ['==', ['get', 'layer'], 'course'],
+  map.addLayer({ id: 'course-line', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['!=', ['get', 'highway'], 'gap_bridge']],
     layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1849a9', 'line-width': 4 } });
+  // 끊긴 곳을 잇기 위해 추가한 연결선(실제 보행 가능 여부는 현장 확인 필요)
+  map.addLayer({ id: 'course-bridge', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['==', ['get', 'highway'], 'gap_bridge']],
+    paint: { 'line-color': '#dc6803', 'line-width': 3, 'line-dasharray': [1.5, 1.5] } });
+  map.addLayer({ id: 'course-issue', type: 'circle', source: 'course', filter: ['==', ['get', 'layer'], 'issue'],
+    paint: { 'circle-radius': 8, 'circle-color': '#fef0c7', 'circle-stroke-color': '#b54708', 'circle-stroke-width': 3 } });
+  map.addSource('trailIssues', { type: 'geojson', data: EMPTY });
+  map.addLayer({ id: 'trail-issues', type: 'circle', source: 'trailIssues', minzoom: 13, layout: { visibility: 'none' },
+    paint: { 'circle-radius': 6, 'circle-color': ['match', ['get', 'type'], 'roundabout_loop', '#7a5af8', 'gap', '#f04438', '#f79009'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'course-osm', type: 'circle', source: 'course', filter: ['==', ['get', 'layer'], 'osm'],
     paint: { 'circle-radius': 5, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5,
       'circle-color': ['match', ['get', 'kind'], 'signal', '#f79009', 'signal_junction', '#f79009', '#667085'] } });
@@ -135,6 +153,16 @@ function initCourses() {
   map.addLayer({ id: 'course-signal', type: 'circle', source: 'course', filter: ['==', ['get', 'layer'], 'signal'],
     paint: { 'circle-radius': 6, 'circle-color': '#d92d20', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
 
+  const ISSUE_LABEL = { roundabout_loop: '회전교차로 고리', gap: '끊김', crossing_without_node: '교차(노드 없음)', t_without_node: 'T자(노드 없음)', overlap: '겹침' };
+  const STATUS_LABEL = { arc_replaced: '고리를 지나가는 호로 줄임', bridged: '연결선으로 이음', flagged: '표시만(자동 수정 안 함)' };
+  map.on('click', 'course-issue', (e) => {
+    const p = e.features[0].properties;
+    new maplibregl.Popup().setLngLat(e.lngLat).setText((ISSUE_LABEL[p.type] || p.type) + ' · ' + (STATUS_LABEL[p.status] || p.status) + (p.meters && p.meters !== 'null' ? ' · ' + p.meters + 'm' : '') + ' — ' + (p.detail || '')).addTo(map);
+  });
+  map.on('click', 'trail-issues', (e) => {
+    const p = e.features[0].properties;
+    new maplibregl.Popup().setLngLat(e.lngLat).setText((ISSUE_LABEL[p.type] || p.type) + (p.meters && p.meters !== 'null' ? ' · ' + p.meters + 'm' : '') + ' — ' + (p.detail || '')).addTo(map);
+  });
   map.on('click', 'course-entrance', (e) => {
     const p = e.features[0].properties;
     const km = (v) => (v === null || v === 'null' ? '정보 없음' : v + 'm');
@@ -159,7 +187,9 @@ function initCourses() {
   map.on('moveend', loadTrailsInView);
   $('lyTrails').addEventListener('change', loadTrailsInView);
   $('lySlope').addEventListener('change', toggleSlope);
+  $('lyIssues').addEventListener('change', toggleIssues);
   loadWeather();
+  initHealthBridge();
 
   getJson('/api/courses').then(({ courses }) => renderList(courses))
     .catch(() => { $('list').textContent = '코스 데이터를 불러오지 못했습니다.'; });
@@ -199,6 +229,39 @@ function renderList(courses) {
   }
 }
 
+// ---- 안드로이드 앱 브리지(삼성헬스 / Health Connect) ----
+// 규약: docs/android-web-bridge.md. 앱이 window.AndroidHealth 를 주입하고, 결과는 window.onAndroidHealth(객체)로 받는다.
+// 웹 브라우저에서 화면만 시험하려면 주소에 ?mockHealth=1 을 붙인다(가짜 응답, 실제 데이터 아님).
+function installMockHealth() {
+  window.AndroidHealth = {
+    status: () => 'available',
+    requestPermissions: () => setTimeout(() => window.onAndroidHealth({ type: 'permission', granted: true }), 300),
+    readRecent: (days) => setTimeout(() => window.onAndroidHealth({ type: 'summary', days, startMillis: Date.now() - days * 864e5, endMillis: Date.now(), steps: 48210, distanceMeters: 35120.5,
+      runningSessions: [{ id: 'mock-1', startMillis: Date.now() - 36e5 * 30, endMillis: Date.now() - 36e5 * 29, title: '모의 러닝' }] }), 300),
+  };
+}
+const HEALTH_ERR = { permission_denied: '권한이 없습니다. 연동 권한을 다시 요청하세요.', unavailable: '이 기기에서는 Health Connect를 쓸 수 없습니다.', update_required: 'Health Connect 설치 또는 업데이트가 필요합니다.', failed: '읽는 중 오류가 났습니다.' };
+function initHealthBridge() {
+  if (new URLSearchParams(location.search).get('mockHealth') === '1') installMockHealth();
+  const bridge = window.AndroidHealth;
+  if (!bridge) return; // 일반 브라우저에서는 이 구역을 숨긴 채 둔다
+  $('health').hidden = false;
+  const info = $('healthInfo');
+  const st = bridge.status();
+  if (st !== 'available') info.textContent = HEALTH_ERR[st] || HEALTH_ERR.unavailable;
+  window.onAndroidHealth = (m) => {
+    if (m.type === 'permission') info.textContent = m.granted ? '권한이 허용되었습니다. "최근 7일 불러오기"를 누르세요.' : '권한이 거부되었습니다. 삼성헬스 공유 설정을 확인하세요.';
+    else if (m.type === 'error') info.textContent = HEALTH_ERR[m.code] || HEALTH_ERR.failed;
+    else if (m.type === 'summary') {
+      const fmt = (v, u) => (v === null || v === undefined ? '공유된 기록 없음' : Number(v).toLocaleString('ko-KR') + u);
+      const runs = (m.runningSessions || []).length;
+      info.textContent = '최근 ' + m.days + '일 · 걸음 수 ' + fmt(m.steps, '보') + ' · 이동거리 ' + fmt(m.distanceMeters === null ? null : m.distanceMeters / 1000, 'km') + ' · 러닝 기록 ' + runs + '건. 이동거리는 러닝만의 거리가 아니라 전체 활동 합계입니다.';
+    }
+  };
+  $('healthConnect').addEventListener('click', () => bridge.requestPermissions());
+  $('healthRead').addEventListener('click', () => { info.textContent = '읽는 중…'; bridge.readRecent(7); });
+}
+
 // ---- 러닝 날씨(해운대 구역별 판정) ----
 const VERDICT_CLASS = { good: 'v-good', fair: 'v-fair', bad: 'v-bad', unknown: 'v-unknown' };
 function loadWeather() {
@@ -235,6 +298,19 @@ function loadTrailsInView() {
   const uniq = [...new Set(keys)].slice(0, 12);
   Promise.all(uniq.map((k) => trailCache.get(k) ?? getJson('/data/trails/' + k + '.json').catch(() => ({ trails: [] })).then((j) => { trailCache.set(k, j); return j; })))
     .then((parts) => map.getSource('trails').setData({ type: 'FeatureCollection', features: parts.flatMap((p) => p.trails).map((t) => ({ type: 'Feature', properties: { name: t.n || '', kind: t.k, region: t.r }, geometry: { type: 'LineString', coordinates: t.g } })) }));
+}
+
+// ---- 해운대 산책로 위상 문제(끊김·회전교차로·교차) 표시 ----
+let issuesLoaded = false;
+function toggleIssues() {
+  const map = window.map;
+  if (!$('lyIssues').checked) { map.setLayoutProperty('trail-issues', 'visibility', 'none'); return; }
+  map.setLayoutProperty('trail-issues', 'visibility', 'visible');
+  if (issuesLoaded) return;
+  getJson('/data/haeundae/trail-issues.json').then((j) => {
+    issuesLoaded = true;
+    map.getSource('trailIssues').setData({ type: 'FeatureCollection', features: j.issues.map((i) => ({ type: 'Feature', properties: { type: i.type, meters: i.meters, detail: i.detail }, geometry: { type: 'Point', coordinates: i.at } })) });
+  }).catch(() => { $('lyIssues').checked = false; });
 }
 
 // ---- 해운대 산책로 500m 이내 경사(10% 이상) ----

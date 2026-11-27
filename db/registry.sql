@@ -17,6 +17,7 @@ INSERT OR REPLACE INTO data_domain (table_name, domain, owner, source_id, note) 
   ('crosswalk_cluster', 'signal', 'this-repo', 'busan-crosswalk-20250423', '12m 이내 횡단보도 점 묶음(고유 건널목)'),
   ('crosswalk_signal_link', 'signal', 'this-repo', NULL, '횡단보도↔가장 가까운 신호제어기'),
   ('schema_migration', 'common', 'this-repo', NULL, '적용된 마이그레이션 기록'),
+  ('course_issue', 'signal', 'this-repo', NULL, '코스 선형 정리 기록(회전교차로·끊김·교차 문제)'),
   ('haeundae_trail', 'signal', 'this-repo', NULL, '해운대 산책로(OSM 이름 있는 길·산길·코스)'),
   ('trail_context_signal', 'signal', 'this-repo', 'busan-signal-ctrl-20250826', '산책로 500m 이내 신호제어기'),
   ('trail_context_crosswalk', 'signal', 'this-repo', 'busan-crosswalk-20250423', '산책로 500m 이내 횡단보도'),

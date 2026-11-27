@@ -220,3 +220,16 @@ CREATE TABLE IF NOT EXISTS trail_context_slope (
   nearest_trail_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_trail_context_slope_latlon ON trail_context_slope (start_lat, start_lon);
+-- 15) 코스 선형 정리 기록: 어떤 문제를 어떻게 처리했는지(회전교차로 고리→호, 끊김→연결선, 표시만)
+CREATE TABLE IF NOT EXISTS course_issue (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  course_code TEXT NOT NULL,
+  type TEXT NOT NULL,              -- roundabout_loop / gap / crossing_without_node / t_without_node / overlap
+  status TEXT NOT NULL,            -- arc_replaced / bridged / flagged
+  severity TEXT,
+  lon REAL, lat REAL,
+  meters REAL,
+  way_ids TEXT,
+  detail TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_course_issue_code ON course_issue (course_code);

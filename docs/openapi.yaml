@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: 동남권 러닝 지도 API
+  version: "2026-11-27"
+  description: |
+    Cloudflare Worker가 제공하는 읽기 전용 API입니다(모든 요청은 GET/HEAD만 허용, 그 외는 405 + `Allow: GET, HEAD`).
+    데이터는 현재 부산 해운대구 중심입니다. 실제 응답 예시는 `docs/samples/`를 보세요.
+    출처 표기 의무: © OpenStreetMap contributors(ODbL), 부산광역시 교통정보서비스센터 공공데이터, Open-Meteo(CC BY 4.0).
+servers:
+  - url: https://dongnam-hackathon.magabus.workers.dev
+paths:
+  /api/health:
+    get:
+      summary: 상태 확인
+      responses:
+        "200":
+          description: 정상
+          content: { application/json: { schema: { type: object, properties: { ok: { type: boolean }, service: { type: string } } } } }
+  /api/courses:
+    get:
+      summary: 코스 목록과 횡단 집계
+      description: 코스 9개(해운대). `crossings`는 출처(`busan_signal_crosswalk` 공공, `osm` 참고)·종류별 개수입니다.
+      responses:
+        "200":
+          description: 코스 목록
+          content: { application/json: { schema: { $ref: "#/components/schemas/Courses" } } }
+        "503": { description: 데이터베이스 연결 없음 }
+  /api/courses/{code}/geojson:
+    get:
+      summary: 코스 경로·횡단보도·출입구 GeoJSON
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, pattern: "^[A-Z0-9-]{3,40}$" }, example: HD-BEACHPROM }
+      responses:
+        "200":
+          description: FeatureCollection. `properties.layer` 값 — course(선), signal(공공 신호 횡단보도), osm(OSM 횡단 노드), entrance(출입구), issue(선형 문제·보정 표시). course의 highway=gap_bridge는 현장 미확인 직선 보정이며 실제 보행 가능 경로를 보증하지 않습니다.
+          content: { application/json: { schema: { $ref: "#/components/schemas/FeatureCollection" } } }
+        "400": { description: 코드 형식 오류 }
+        "404": { description: 없는 코스 }
+  /api/crosswalks:
+    get:
+      summary: 영역 안의 신호등 있는 횡단보도 점
+      parameters: [ { $ref: "#/components/parameters/bbox" } ]
+      responses:
+        "200": { description: 점 FeatureCollection(최대 1500개), content: { application/json: { schema: { $ref: "#/components/schemas/FeatureCollection" } } } }
+        "400": { description: "bbox 오류(없음, 순서 오류, 폭·높이 0.05° 초과, 한국 밖)" }
+  /api/signals:
+    get:
+      summary: 영역 안의 신호제어기(교차로 단위) 점
+      description: 데이터기준일자 2020-12-31(오래됨). 보행 신호등 개별 위치가 아닙니다.
+      parameters: [ { $ref: "#/components/parameters/bbox" } ]
+      responses:
+        "200": { description: 점 FeatureCollection, content: { application/json: { schema: { $ref: "#/components/schemas/FeatureCollection" } } } }
+        "400": { description: bbox 오류 }
+  /api/weather:
+    get:
+      summary: 러닝 날씨 판정
+      parameters:
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [haeundae, region, all], default: haeundae } }
+      description: |
+        `rating.verdict`는 good/fair/bad/unknown. **unknown(판정 불가)은 좋음이 아니며** 평균·추천에서 제외됩니다.
+        공급자(Open-Meteo) 오류·지점 수 불일치·전부 판정 불가이면 502.
+      responses:
+        "200":
+          description: 구역별 현재 관측·점수·추천 시간
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Weather" }
+        "400": { description: scope 오류 }
+        "502": { description: 날씨 공급자 사용 불가 }
+  /data/haeundae/trail-context.json:
+    get:
+      summary: 해운대 산책로 선분 기준 500m 이내 신호제어기·횡단보도·경사 구간(정적 파일, 약 1.4MB)
+      responses: { "200": { description: JSON } }
+  /data/trails/index.json:
+    get:
+      summary: 부울경 산책로·산길 벡터 조각 목록(수집 완료 후 제공, 조각은 /data/trails/{위도}_{경도}.json)
+      responses: { "200": { description: JSON }, "404": { description: 아직 배포 전 } }
+  /data/haeundae/trail-issues.json:
+    get:
+      summary: 해운대 산책로의 자동 탐지 위상 문제(참고용 정적 파일)
+      description: 실제 통행 장애를 확정하지 않습니다. 배포 전에는 404일 수 있습니다.
+      responses: { "200": { description: 탐지 종류·위치·설명 JSON }, "404": { description: 아직 배포 전 } }
+components:
+  parameters:
+    bbox:
+      name: bbox
+      in: query
+      required: true
+      description: "서,남,동,북 (경도,위도). 한국 범위 안, 폭·높이 0.05° 이하"
+      schema: { type: string }
+      example: "129.155,35.155,129.175,35.168"
+  schemas:
+    FeatureCollection:
+      type: object
+      properties:
+        type: { type: string, enum: [FeatureCollection] }
+        features: { type: array, items: { type: object } }
+    Courses:
+      type: object
+      properties:
+        courses:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              region: { type: string }
+              gu: { type: string }
+              kind: { type: string, description: "trail / riverside / road_proxy(차도 기준 근사)" }
+              length_m: { type: integer }
+              unique_crossings: { type: integer, description: "12m 이내 점을 하나로 본 공공 신호 횡단보도 수" }
+              note: { type: string, nullable: true }
+              crossings: { type: array, items: { type: object, properties: { source: { type: string }, kind: { type: string }, count: { type: integer } } } }
+    Rating:
+      type: object
+      required: [score, verdict, label, reasons]
+      properties:
+        score: { type: integer, nullable: true, minimum: 0, maximum: 100, description: "unknown이면 null. 0점으로 대체하지 않습니다." }
+        verdict: { type: string, enum: [good, fair, bad, unknown] }
+        label: { type: string }
+        reasons: { type: array, items: { type: string } }
+    Weather:
+      type: object
+      required: [generatedAt, source, notice, scope, summary, areas]
+      properties:
+        generatedAt: { type: string, format: date-time }
+        source: { type: string }
+        notice: { type: string }
+        scope: { type: string, enum: [haeundae, region, all] }
+        summary:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              score: { type: integer, nullable: true }
+              verdict: { type: string, enum: [good, fair, bad, unknown] }
+              label: { type: string }
+              coverage: { type: string, description: "유효 지점/전체 지점, 예: 4/6" }
+              counts: { type: object, additionalProperties: { type: integer } }
+        areas:
+          type: array
+          items:
+            type: object
+            required: [id, name, group, current, rating]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              group: { type: string }
+              observedAt: { type: string, nullable: true, description: "Asia/Seoul 현지 시각(오프셋 없음)" }
+              current: { type: object, additionalProperties: true }
+              rating: { $ref: "#/components/schemas/Rating" }
+              bestHours: { type: array, items: { type: object }, description: "unknown이면 생략" }
+              nextHours: { type: array, items: { type: object }, description: "unknown이면 생략" }

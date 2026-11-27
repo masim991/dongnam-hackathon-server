@@ -1,0 +1,81 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 221,
+        "label": "그랜드호텔",
+        "dong": "우동"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1561997,
+          35.15851943
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 450,
+        "label": "글로리콘도",
+        "dong": "우동"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1583466,
+          35.15913787
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 453,
+        "label": "바다파출소",
+        "dong": "우동"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1602782,
+          35.15953312
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 454,
+        "label": "바다파출소",
+        "dong": "우동"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1607341,
+          35.15958514
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 455,
+        "label": "바다파출소",
+        "dong": "중동"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          129.1618425,
+          35.15974145
+        ]
+      }
+    }
+  ],
+  "_note": "해당 영역 14개 중 5개만 표시"
+}

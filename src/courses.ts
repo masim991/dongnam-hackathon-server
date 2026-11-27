@@ -53,7 +53,7 @@ export async function handleCourseApi(url: URL, env: Env): Promise<Response | nu
   if (geo) {
     const code = geo[1];
     if (!CODE_RE.test(code)) return json({ error: "Bad course code" }, 400, { "Cache-Control": "no-store" });
-    const [ways, signals, osm, entrances] = await Promise.all([
+    const [ways, signals, osm, entrances, issues] = await Promise.all([
       db.prepare("SELECT osm_way_id,name,highway,length_m,geometry_geojson FROM course_way WHERE course_code=?").bind(code).all<Row>(),
       db.prepare(
         "SELECT c.id,c.intersection_name,c.dong,c.lon,c.lat,cc.distance_m FROM course_crosswalk cc JOIN busan_crosswalk c ON c.id=cc.crosswalk_id WHERE cc.course_code=?",
@@ -62,6 +62,7 @@ export async function handleCourseApi(url: URL, env: Env): Promise<Response | nu
         "SELECT o.osm_id,o.kind,o.name,o.lon,o.lat,co.distance_m FROM course_osm_crossing co JOIN osm_crossing o ON o.osm_id=co.osm_id WHERE co.course_code=?",
       ).bind(code).all<Row>(),
       db.prepare("SELECT seq,lon,lat,nearest_signal_m,nearest_osm_m,nearest_osm_kind FROM course_entrance WHERE course_code=? ORDER BY seq").bind(code).all<Row>(),
+      db.prepare("SELECT id,type,status,severity,lon,lat,meters,detail FROM course_issue WHERE course_code=? ORDER BY id").bind(code).all<Row>(),
     ]);
     if (ways.results.length === 0) return json({ error: "Course not found" }, 404, { "Cache-Control": "no-store" });
     const point = (r: Row, props: Row) => ({ type: "Feature", properties: props, geometry: { type: "Point", coordinates: [r.lon, r.lat] } });
@@ -75,6 +76,7 @@ export async function handleCourseApi(url: URL, env: Env): Promise<Response | nu
         })),
         ...signals.results.map((r) => point(r, { layer: "signal", id: r.id, label: r.intersection_name, dong: r.dong, distanceM: r.distance_m })),
         ...osm.results.map((r) => point(r, { layer: "osm", kind: r.kind, label: r.name, distanceM: r.distance_m })),
+        ...issues.results.map((r) => point(r, { layer: "issue", type: r.type, status: r.status, severity: r.severity, meters: r.meters, detail: r.detail })),
         ...entrances.results.map((r) => point(r, { layer: "entrance", seq: r.seq, nearestSignalM: r.nearest_signal_m, nearestOsmM: r.nearest_osm_m, nearestOsmKind: r.nearest_osm_kind })),
       ],
     });

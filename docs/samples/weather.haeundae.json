@@ -1,0 +1,223 @@
+{
+  "generatedAt": "2026-11-27T08:24:20.867Z",
+  "source": "Open-Meteo (https://open-meteo.com, CC BY 4.0)",
+  "notice": "러닝 지수는 참고용 경험 규칙입니다. 관측값이 없는 지점은 판정 불가로 두고 평균·추천에서 제외합니다. 해운대는 구역별 정밀 지점, 나머지 부울경은 시·군·구 대표 좌표(근사)입니다. 미세먼지는 모델값으로 측정소 값과 다를 수 있습니다. 무료 API는 비상업 용도 조건이므로 상용 출시 전 이용 조건을 확인하세요.",
+  "scope": "haeundae",
+  "summary": {
+    "해운대": {
+      "score": 91,
+      "verdict": "good",
+      "label": "러닝하기 좋은 날씨",
+      "counts": {
+        "good": 6,
+        "fair": 0,
+        "bad": 0,
+        "unknown": 0
+      },
+      "coverage": "6/6"
+    }
+  },
+  "areas": [
+    {
+      "id": "hd-beach",
+      "name": "해운대 해변(해변로)",
+      "group": "해운대 정밀",
+      "lat": 35.1588,
+      "lon": 129.16,
+      "observedAt": "2026-11-27T17:15",
+      "airQualityAvailable": true,
+      "current": {
+        "tempC": 17.6,
+        "feelsLikeC": 14.8,
+        "humidityPct": 74,
+        "windMs": 7.22,
+        "windGustMs": 11.9,
+        "windFromDeg": 233,
+        "windFrom": "남서풍",
+        "precipMm": 0,
+        "pm25": 12.2,
+        "pm10": 16.5
+      },
+      "rating": {
+        "score": 82,
+        "verdict": "good",
+        "label": "러닝하기 좋은 날씨",
+        "reasons": [
+          "습합니다(습도 74%)",
+          "바람이 셉니다(7.2m/s)"
+        ]
+      },
+      "bestHours": [
+        {
+          "time": "2026-11-27T20:00",
+          "score": 86,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T19:00",
+          "score": 85,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T21:00",
+          "score": 85,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        }
+      ],
+      "nextHours": [
+        {
+          "time": "2026-11-27T17:00",
+          "score": 72,
+          "verdict": "fair",
+          "label": "보통"
+        },
+        {
+          "time": "2026-11-27T20:00",
+          "score": 86,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T23:00",
+          "score": 76,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-28T02:00",
+          "score": 71,
+          "verdict": "fair",
+          "label": "보통"
+        },
+        {
+          "time": "2026-11-28T05:00",
+          "score": 60,
+          "verdict": "fair",
+          "label": "보통"
+        },
+        {
+          "time": "2026-11-28T08:00",
+          "score": 79,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-28T11:00",
+          "score": 73,
+          "verdict": "fair",
+          "label": "보통"
+        },
+        {
+          "time": "2026-11-28T14:00",
+          "score": 51,
+          "verdict": "fair",
+          "label": "보통"
+        }
+      ]
+    },
+    {
+      "id": "hd-dongbaek",
+      "name": "동백섬",
+      "group": "해운대 정밀",
+      "lat": 35.154,
+      "lon": 129.153,
+      "observedAt": "2026-11-27T17:15",
+      "airQualityAvailable": true,
+      "current": {
+        "tempC": 16.7,
+        "feelsLikeC": 14.9,
+        "humidityPct": 74,
+        "windMs": 4.58,
+        "windGustMs": 11.9,
+        "windFromDeg": 234,
+        "windFrom": "남서풍",
+        "precipMm": 0,
+        "pm25": 12.2,
+        "pm10": 16.5
+      },
+      "rating": {
+        "score": 95,
+        "verdict": "good",
+        "label": "러닝하기 좋은 날씨",
+        "reasons": [
+          "습합니다(습도 74%)",
+          "바람이 셉니다(4.6m/s)"
+        ]
+      },
+      "bestHours": [
+        {
+          "time": "2026-11-27T19:00",
+          "score": 98,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T18:00",
+          "score": 96,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T20:00",
+          "score": 96,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        }
+      ],
+      "nextHours": [
+        {
+          "time": "2026-11-27T17:00",
+          "score": 85,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T20:00",
+          "score": 96,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-27T23:00",
+          "score": 82,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-28T02:00",
+          "score": 72,
+          "verdict": "fair",
+          "label": "보통"
+        },
+        {
+          "time": "2026-11-28T05:00",
+          "score": 68,
+          "verdict": "fair",
+          "label": "보통"
+        },
+        {
+          "time": "2026-11-28T08:00",
+          "score": 88,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-28T11:00",
+          "score": 84,
+          "verdict": "good",
+          "label": "러닝하기 좋은 날씨"
+        },
+        {
+          "time": "2026-11-28T14:00",
+          "score": 63,
+          "verdict": "fair",
+          "label": "보통"
+        }
+      ]
+    }
+  ],
+  "_note": "전체 6개 구역 중 2개만 표시"
+}
