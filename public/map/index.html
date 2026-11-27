@@ -18,6 +18,18 @@ html,body,#map{margin:0;height:100%}
 #panel summary{font-weight:700;font-size:15px;cursor:pointer;padding:2px 0}
 #panel summary:focus-visible{outline:3px solid #1849a9;outline-offset:1px}
 /* 좁은 화면: 패널을 아래쪽 시트로 두고 높이를 제한해 지도를 가리지 않게 한다 */
+#wx,#layers{margin:8px 0 0;border-top:1px solid #d0d5dd;padding-top:6px}
+#wx summary,#layers summary{font-size:14px}
+#wxSummary{font-weight:700;margin:6px 0 2px;font-size:13px}
+#wxList{margin:4px 0 0;padding:0;list-style:none;font-size:12px}
+#wxList li{margin:4px 0}
+.v-good{color:#067647}.v-fair{color:#b54708}.v-bad{color:#b42318}.v-unknown{color:#475467}
+#layers label{display:block;font-size:12px;margin:5px 0}
+#myrun{margin:8px 0 0;border-top:1px solid #d0d5dd;padding-top:6px}
+#myrun summary{font-size:14px}
+#myrun p,#myrun label{font-size:12px;margin:6px 0}
+#myrun input[type=file]{width:100%;font:inherit;margin:4px 0}
+#myrun button{display:inline-block;width:auto;margin:4px 6px 0 0}
 @media (max-width:600px){#panel{top:auto;bottom:8px;max-height:46%}}
 </style>
 </head>
@@ -29,13 +41,33 @@ html,body,#map{margin:0;height:100%}
     <div id="list" role="group" aria-label="코스 목록">불러오는 중…</div>
   </details>
   <p id="info" role="status" aria-live="polite"></p>
+  <details id="wx">
+    <summary>러닝 날씨 (해운대 구역별)</summary>
+    <p id="wxSummary" role="status" aria-live="polite">불러오는 중…</p>
+    <ul id="wxList"></ul>
+    <p class="note">풍속·풍향·체감온도·습도·강수·미세먼지를 합친 참고용 지수입니다. 관측값이 없는 구역은 판정하지 않습니다. 출처 Open-Meteo.</p>
+  </details>
+  <details id="layers">
+    <summary>지도 레이어</summary>
+    <label><input type="checkbox" id="lyTrails"> 부울경 산책로·산길(OSM, 12단계 이상)</label>
+    <label><input type="checkbox" id="lySlope"> 해운대 산책로 500m 이내 경사 10% 이상</label>
+  </details>
+  <details id="myrun">
+    <summary>내 러닝 기록 불러오기 (삼성헬스 GPX)</summary>
+    <p>삼성헬스 → 운동 기록 선택 → 더보기(⋮) → <b>경로 저장</b>(GPX)으로 내보낸 뒤 여기서 파일을 고르세요. 파일은 <b>이 기기 브라우저 안에서만</b> 분석하며 서버로 올라가지 않습니다(주변 횡단보도 조회 때 약 2km 격자 단위의 대략적 지역만 전달됩니다).</p>
+    <label><input type="checkbox" id="trimEnds" checked> 시작·끝 150m는 숨기고 분석(집·직장 보호)</label>
+    <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,text/xml,application/xml" aria-label="GPX 파일 선택">
+    <button type="button" id="gpxClear">기록 지우기</button>
+    <p id="gpxInfo" role="status" aria-live="polite"></p>
+  </details>
   <ul class="legend">
     <li><i style="background:#d92d20"></i>신호등 있는 횡단보도(부산시 공공데이터)</li>
+    <li><i style="background:#1570ef"></i>신호제어기(교차로 단위, 14단계 이상 확대 시)</li>
     <li><i style="background:#f79009"></i>OSM 신호 횡단(참고)</li>
     <li><i style="background:#667085"></i>OSM 무신호·미분류 횡단(참고)</li>
     <li><i style="background:#fff;border:2px solid #101828;box-sizing:border-box"></i>코스 출입구(누르면 가장 가까운 횡단까지 거리)</li>
   </ul>
-  <p class="note">신호 없는 횡단보도는 공공 파일에 없습니다. 지도 확대(15단계 이상)하면 코스 밖 신호 횡단보도도 표시됩니다.<br>© OpenStreetMap contributors (ODbL), 부산광역시 교통정보서비스센터</p>
+  <p class="note">신호 없는 횡단보도는 공공 파일에 없습니다. 지도를 확대하면 코스 밖 신호제어기(14단계~)와 신호 횡단보도(15단계~)도 표시됩니다. 신호제어기 위치의 데이터기준일은 2020-12-31로 오래되었습니다.<br>© OpenStreetMap contributors (ODbL), 부산광역시 교통정보서비스센터</p>
 </section>
 <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
 <script>
@@ -57,6 +89,8 @@ function koreanOnly(style) {
 }
 
 const EMPTY = { type: 'FeatureCollection', features: [] };
+let resolveMapReady;
+const mapReady = new Promise((r) => { resolveMapReady = r; }); // 지도 준비 전에 파일을 골라도 준비되면 이어서 처리한다
 const $ = (id) => document.getElementById(id);
 
 fetch(STYLE_URL).then(r => r.json()).then(style => {
@@ -67,7 +101,7 @@ fetch(STYLE_URL).then(r => r.json()).then(style => {
     zoom: 11,
     maxBounds: BOUNDS,
   });
-  window.map.on('load', initCourses);
+  window.map.on('load', () => { initCourses(); resolveMapReady(); });
 });
 
 async function getJson(url) {
@@ -79,6 +113,15 @@ async function getJson(url) {
 function initCourses() {
   const map = window.map;
   map.addSource('xwalk', { type: 'geojson', data: EMPTY });
+  map.addSource('signals', { type: 'geojson', data: EMPTY });
+  map.addSource('trails', { type: 'geojson', data: EMPTY });
+  map.addSource('slope', { type: 'geojson', data: EMPTY });
+  map.addLayer({ id: 'trails', type: 'line', source: 'trails', minzoom: 12, layout: { 'line-cap': 'round' },
+    paint: { 'line-color': ['match', ['get', 'kind'], 'steps', '#9e77ed', 'track', '#a15c07', 'cycleway', '#0e9384', '#2e7d32'], 'line-width': 2, 'line-opacity': 0.8 } });
+  map.addLayer({ id: 'slope', type: 'line', source: 'slope', minzoom: 13, layout: { visibility: 'none' },
+    paint: { 'line-color': ['interpolate', ['linear'], ['get', 'grade'], 10, '#fdb022', 20, '#f04438', 40, '#7a271a'], 'line-width': 3 } });
+  map.addLayer({ id: 'signals', type: 'circle', source: 'signals', minzoom: 14,
+    paint: { 'circle-radius': 5, 'circle-color': '#1570ef', 'circle-opacity': 0.8, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 } });
   map.addSource('course', { type: 'geojson', data: EMPTY });
   map.addLayer({ id: 'xwalk', type: 'circle', source: 'xwalk', minzoom: 15,
     paint: { 'circle-radius': 4, 'circle-color': '#d92d20', 'circle-opacity': 0.55, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
@@ -98,6 +141,11 @@ function initCourses() {
     new maplibregl.Popup().setLngLat(e.lngLat)
       .setText('출입구 ' + p.seq + ' · 가장 가까운 공공 신호 횡단보도 ' + km(p.nearestSignalM) + ' · OSM 횡단 ' + km(p.nearestOsmM) + (p.nearestOsmKind && p.nearestOsmKind !== 'null' ? '(' + (OSM_KIND_LABEL[p.nearestOsmKind] || p.nearestOsmKind) + ')' : '')).addTo(map);
   });
+  map.on('click', 'signals', (e) => {
+    const p = e.features[0].properties;
+    const t = (v) => (v && v !== 'null' ? v : '정보 없음');
+    new maplibregl.Popup().setLngLat(e.lngLat).setText('신호제어기(교차로 단위) · ' + t(p.label) + ' · ' + t(p.sigungu) + ' · ' + t(p.roadType)).addTo(map);
+  });
   for (const id of ['xwalk', 'course-osm', 'course-signal']) {
     map.on('click', id, (e) => {
       const p = e.features[0].properties;
@@ -107,26 +155,34 @@ function initCourses() {
     map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
   }
-  map.on('moveend', loadCrosswalks);
+  map.on('moveend', loadViewLayers);
+  map.on('moveend', loadTrailsInView);
+  $('lyTrails').addEventListener('change', loadTrailsInView);
+  $('lySlope').addEventListener('change', toggleSlope);
+  loadWeather();
 
   getJson('/api/courses').then(({ courses }) => renderList(courses))
     .catch(() => { $('list').textContent = '코스 데이터를 불러오지 못했습니다.'; });
 }
 
-let xwalkTimer;
-function loadCrosswalks() {
+let viewTimer;
+function loadViewLayers() {
   const map = window.map;
-  clearTimeout(xwalkTimer);
-  if (map.getZoom() < 15) { map.getSource('xwalk').setData(EMPTY); return; }
-  xwalkTimer = setTimeout(() => {
+  clearTimeout(viewTimer);
+  const z = map.getZoom();
+  if (z < 14) map.getSource('signals').setData(EMPTY);
+  if (z < 15) map.getSource('xwalk').setData(EMPTY);
+  if (z < 14) return;
+  viewTimer = setTimeout(() => {
     const c = map.getCenter(), b = map.getBounds();
     const half = (v, lim) => Math.min(v, lim);
     const w = Math.max(b.getWest(), c.lng - half(c.lng - b.getWest(), 0.024));
     const e = Math.min(b.getEast(), c.lng + half(b.getEast() - c.lng, 0.024));
     const s = Math.max(b.getSouth(), c.lat - half(c.lat - b.getSouth(), 0.024));
     const n = Math.min(b.getNorth(), c.lat + half(b.getNorth() - c.lat, 0.024));
-    getJson('/api/crosswalks?bbox=' + [w, s, e, n].map((v) => v.toFixed(5)).join(','))
-      .then((fc) => map.getSource('xwalk').setData(fc)).catch(() => {});
+    const q = '?bbox=' + [w, s, e, n].map((v) => v.toFixed(5)).join(',');
+    getJson('/api/signals' + q).then((fc) => map.getSource('signals').setData(fc)).catch(() => {});
+    if (z >= 15) getJson('/api/crosswalks' + q).then((fc) => map.getSource('xwalk').setData(fc)).catch(() => {});
   }, 250);
 }
 
@@ -142,6 +198,169 @@ function renderList(courses) {
     list.appendChild(b);
   }
 }
+
+// ---- 러닝 날씨(해운대 구역별 판정) ----
+const VERDICT_CLASS = { good: 'v-good', fair: 'v-fair', bad: 'v-bad', unknown: 'v-unknown' };
+function loadWeather() {
+  const sum = $('wxSummary'), list = $('wxList');
+  getJson('/api/weather?scope=haeundae').then((w) => {
+    const s = w.summary['해운대'];
+    sum.className = VERDICT_CLASS[s.verdict];
+    sum.textContent = '해운대 종합: ' + s.label + (s.score === null ? '' : ' (' + s.score + '점)') + ' · 판정 ' + s.coverage + '곳';
+    list.textContent = '';
+    for (const a of w.areas) {
+      const li = document.createElement('li');
+      const r = a.rating, c = a.current;
+      const best = (a.bestHours || [])[0];
+      li.className = VERDICT_CLASS[r.verdict];
+      li.textContent = a.name + ': ' + r.label + (r.score === null ? '' : ' ' + r.score + '점')
+        + (c.tempC === null ? '' : ' · ' + c.tempC.toFixed(0) + '°C(체감 ' + (c.feelsLikeC ?? '?') + ')')
+        + (c.windMs === null ? '' : ' · ' + (c.windFrom || '') + ' ' + c.windMs.toFixed(1) + 'm/s')
+        + (c.humidityPct === null ? '' : ' · 습도 ' + c.humidityPct.toFixed(0) + '%')
+        + (r.reasons.length ? ' — ' + r.reasons.join(', ') : '')
+        + (best ? ' · 추천 ' + best.time.slice(11, 16) : '');
+      list.appendChild(li);
+    }
+  }).catch(() => { sum.className = 'v-unknown'; sum.textContent = '날씨를 불러오지 못했습니다.'; });
+}
+
+// ---- 부울경 산책로·산길 벡터 조각(0.1° 칸) ----
+const trailCache = new Map();
+function trailCell(la, lo) { return (Math.floor(la * 10) / 10).toFixed(1) + '_' + (Math.floor(lo * 10) / 10).toFixed(1); }
+function loadTrailsInView() {
+  const map = window.map;
+  if (!$('lyTrails').checked || map.getZoom() < 12) { map.getSource('trails').setData(EMPTY); return; }
+  const b = map.getBounds(), keys = [];
+  for (let la = Math.floor(b.getSouth() * 10) / 10; la <= b.getNorth(); la += 0.1) for (let lo = Math.floor(b.getWest() * 10) / 10; lo <= b.getEast(); lo += 0.1) keys.push(trailCell(la + 1e-6, lo + 1e-6));
+  const uniq = [...new Set(keys)].slice(0, 12);
+  Promise.all(uniq.map((k) => trailCache.get(k) ?? getJson('/data/trails/' + k + '.json').catch(() => ({ trails: [] })).then((j) => { trailCache.set(k, j); return j; })))
+    .then((parts) => map.getSource('trails').setData({ type: 'FeatureCollection', features: parts.flatMap((p) => p.trails).map((t) => ({ type: 'Feature', properties: { name: t.n || '', kind: t.k, region: t.r }, geometry: { type: 'LineString', coordinates: t.g } })) }));
+}
+
+// ---- 해운대 산책로 500m 이내 경사(10% 이상) ----
+let slopeLoaded = false;
+function toggleSlope() {
+  const map = window.map;
+  if (!$('lySlope').checked) { map.setLayoutProperty('slope', 'visibility', 'none'); return; }
+  map.setLayoutProperty('slope', 'visibility', 'visible');
+  if (slopeLoaded) return;
+  getJson('/data/haeundae/trail-context.json').then((j) => {
+    slopeLoaded = true;
+    map.getSource('slope').setData({ type: 'FeatureCollection', features: j.slope.map((s) => ({ type: 'Feature', properties: { grade: Math.abs(s.grade) }, geometry: { type: 'LineString', coordinates: [s.a, s.b] } })) });
+  }).catch(() => { $('lySlope').checked = false; });
+}
+
+// ---- 삼성헬스 GPX 불러오기: 파일은 브라우저 안에서만 읽고 서버로 보내지 않는다 ----
+const GPX_MAX_BYTES = 10 * 1024 * 1024, GPX_MAX_POINTS = 60000, CELL = 0.02, MAX_CELLS = 12, BUF_M = 20, MERGE_M = 12, TRIM_M = 150;
+const KLA = 111320, mx = (lat) => 111320 * Math.cos(lat * Math.PI / 180);
+const dist = (a, b) => Math.hypot((b[0] - a[0]) * mx(a[1]), (b[1] - a[1]) * KLA);
+
+function parseGpxText(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('GPX 형식이 올바르지 않습니다.');
+  let nodes = [...doc.getElementsByTagName('trkpt')];
+  if (!nodes.length) nodes = [...doc.getElementsByTagName('rtept')];
+  const pts = [];
+  for (const n of nodes) {
+    const lat = parseFloat(n.getAttribute('lat')), lon = parseFloat(n.getAttribute('lon'));
+    if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) pts.push([lon, lat]);
+    if (pts.length > GPX_MAX_POINTS) throw new Error('점이 너무 많습니다(최대 ' + GPX_MAX_POINTS + ').');
+  }
+  return pts;
+}
+
+function trimEnds(pts, m) {
+  let a = 0, acc = 0;
+  while (a < pts.length - 1 && acc < m) { acc += dist(pts[a], pts[a + 1]); a++; }
+  let b = pts.length - 1; acc = 0;
+  while (b > a && acc < m) { acc += dist(pts[b], pts[b - 1]); b--; }
+  return b - a >= 1 ? pts.slice(a, b + 1) : [];
+}
+
+function densify(pts, stepM) {
+  const out = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const n = Math.max(1, Math.ceil(dist(pts[i], pts[i + 1]) / stepM));
+    for (let k = 0; k < n; k++) out.push([pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k / n, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k / n]);
+  }
+  out.push(pts.at(-1));
+  return out;
+}
+
+async function analyzeRun(pts) {
+  const lons = pts.map((p) => p[0]), lats = pts.map((p) => p[1]);
+  const cells = [];
+  for (let x = Math.floor(Math.min(...lons) / CELL); x <= Math.floor(Math.max(...lons) / CELL); x++)
+    for (let y = Math.floor(Math.min(...lats) / CELL); y <= Math.floor(Math.max(...lats) / CELL); y++) cells.push([x, y]);
+  if (cells.length > MAX_CELLS) throw new Error('경로가 너무 넓어 분석하지 않습니다(부산 해운대 일대용).');
+  const found = new Map();
+  for (const [x, y] of cells) {
+    const q = [x * CELL, y * CELL, (x + 1) * CELL, (y + 1) * CELL].map((v) => v.toFixed(5)).join(',');
+    const fc = await getJson('/api/crosswalks?bbox=' + q);
+    for (const f of fc.features) found.set(f.properties.id, f);
+  }
+  if (found.size === 0) throw new Error('이 지역에는 신호 횡단보도 데이터가 없습니다(부산 데이터만 제공).');
+  const dense = densify(pts, 5);
+  const near = [];
+  for (const f of found.values()) {
+    const c = f.geometry.coordinates;
+    let min = Infinity;
+    for (const p of dense) { const d = dist(p, c); if (d < min) min = d; if (min <= BUF_M) break; }
+    if (min <= BUF_M) near.push({ c, label: f.properties.label });
+  }
+  const merged = [];
+  for (const n of near) if (!merged.some((m) => dist(m.c, n.c) <= MERGE_M)) merged.push(n);
+  const km = pts.slice(1).reduce((s, p, i) => s + dist(pts[i], p), 0) / 1000;
+  return { km, merged, loaded: found.size };
+}
+
+function showRun(pts, result) {
+  const map = window.map;
+  if (!map.getSource('myrun')) {
+    map.addSource('myrun', { type: 'geojson', data: EMPTY });
+    map.addLayer({ id: 'myrun-line', type: 'line', source: 'myrun', filter: ['==', ['get', 'k'], 'line'], paint: { 'line-color': '#067647', 'line-width': 4, 'line-dasharray': [2, 1] } });
+    map.addLayer({ id: 'myrun-xwalk', type: 'circle', source: 'myrun', filter: ['==', ['get', 'k'], 'xwalk'],
+      paint: { 'circle-radius': 7, 'circle-color': '#d92d20', 'circle-stroke-color': '#067647', 'circle-stroke-width': 3 } });
+  }
+  const features = [{ type: 'Feature', properties: { k: 'line' }, geometry: { type: 'LineString', coordinates: pts } },
+    ...result.merged.map((m) => ({ type: 'Feature', properties: { k: 'xwalk', label: m.label }, geometry: { type: 'Point', coordinates: m.c } }))];
+  map.getSource('myrun').setData({ type: 'FeatureCollection', features });
+  const b = new maplibregl.LngLatBounds();
+  for (const p of pts) b.extend(p);
+  map.fitBounds(b, { padding: 60, maxZoom: 17 });
+}
+
+function clearRun() {
+  const map = window.map;
+  if (map.getSource('myrun')) map.getSource('myrun').setData(EMPTY);
+  $('gpxFile').value = '';
+  $('gpxInfo').textContent = '기록을 지웠습니다.';
+}
+
+async function onGpxPicked() {
+  const file = $('gpxFile').files[0];
+  const info = $('gpxInfo');
+  if (!file) return;
+  info.textContent = '지도를 불러오는 중…';
+  await mapReady;
+  if (file.size > GPX_MAX_BYTES) { info.textContent = '파일이 너무 큽니다(최대 10MB).'; return; }
+  info.textContent = '분석 중…';
+  try {
+    let pts = parseGpxText(await file.text());
+    if (pts.length < 2) throw new Error('경로 점을 찾지 못했습니다.');
+    if ($('trimEnds').checked) pts = trimEnds(pts, TRIM_M);
+    if (pts.length < 2) throw new Error('시작·끝 150m를 숨기면 남는 경로가 없습니다. 옵션을 끄고 다시 시도하세요.');
+    const result = await analyzeRun(pts);
+    showRun(pts, result);
+    info.textContent = '거리 ' + result.km.toFixed(2) + 'km · 지나친 신호 횡단보도 ' + result.merged.length + '곳(' + (result.km > 0 ? (result.merged.length / result.km).toFixed(1) : '0') + '곳/km, ' + BUF_M + 'm 이내·12m 합산). 신호 없는 횡단보도는 포함되지 않습니다.';
+    if ($('coursebox')) $('coursebox').open = false;
+  } catch (err) {
+    info.textContent = err.message || '분석하지 못했습니다.';
+  }
+}
+
+$('gpxFile').addEventListener('change', onGpxPicked);
+$('gpxClear').addEventListener('click', () => mapReady.then(clearRun));
 
 async function selectCourse(c, button) {
   for (const b of $('list').children) b.setAttribute('aria-pressed', String(b === button));

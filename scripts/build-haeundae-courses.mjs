@@ -5,6 +5,7 @@
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { SCOPE_GU, readHaeundaeSignals, clusterCrosswalks, linkSignals, buildChecks } from "./hd-data.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CSV_PATH = path.join(root, "data/raw/busan_crosswalk_20250423.csv");
@@ -162,7 +163,10 @@ function cluster(points) {
   return cl.length;
 }
 
-const { all: crosswalks, parsed } = await loadCrosswalks();
+const { all: allCrosswalks, parsed } = await loadCrosswalks();
+const crosswalks = allCrosswalks.filter((c) => c.gu === SCOPE_GU); // 해운대구만 적재(다른 구는 D1에 넣지 않음)
+const SIGNAL_DATASET_ID = "busan-signal-ctrl-20250826";
+const signals = readHaeundaeSignals(path.join(root, "data/raw/busan_signal_ctrl_20250826.csv")).map((s, i) => ({ ...s, sid: i + 1 }));
 const osm = await loadOsm();
 const crossingsJson = await loadCrossings();
 const pathways = await loadPathways(COURSES.flatMap((c) => c.wayIds ?? []));
@@ -171,12 +175,16 @@ const osmPts = crossingsJson.elements
   .filter((e) => e.type === "node" && Number.isFinite(e.lat) && Number.isFinite(e.lon))
   .map((e) => { const [x, y] = toXY(e.lat, e.lon); return { id: e.id, lat: e.lat, lon: e.lon, x, y, kind: crossingKind(e.tags ?? {}), name: e.tags?.name ?? null }; });
 
+const clusters = clusterCrosswalks(crosswalks, MERGE_M);
+const links = linkSignals(crosswalks, signals.filter((s) => s.is_signal), 100);
+const checks = buildChecks({ crosswalks, clusters, signals, links, osmNodes: osmPts.filter((p) => p.kind === "signal_junction").map((p) => [p.x, p.y]) });
+
 const builtAt = new Date().toISOString();
-const report = { builtAt, bufferM: BUFFER_M, mergeM: MERGE_M, crosswalkRows: crosswalks.length, csvRows: parsed, courses: [] };
+const report = { builtAt, scope: SCOPE_GU, bufferM: BUFFER_M, mergeM: MERGE_M, crosswalkRows: crosswalks.length, csvRows: parsed, uniqueCrossings: clusters.filter((c) => c.is_primary).length, signals: signals.length, checks, courses: [] };
 const sql = [];
 const emit = (s) => sql.push(s);
 
-emit("DELETE FROM course_entrance;\nDELETE FROM course_crossing_summary;\nDELETE FROM course_osm_crossing;\nDELETE FROM osm_crossing;\nDELETE FROM course_crosswalk;\nDELETE FROM course_way;\nDELETE FROM course;\nDELETE FROM busan_crosswalk;\nDELETE FROM src_dataset WHERE id IN ('" + DATASET_ID + "', '" + OSM_DATASET_ID + "');");
+emit("DELETE FROM crosswalk_signal_link;\nDELETE FROM crosswalk_cluster;\nDELETE FROM busan_signal;\nDELETE FROM data_check;\nDELETE FROM course_entrance;\nDELETE FROM course_crossing_summary;\nDELETE FROM course_osm_crossing;\nDELETE FROM osm_crossing;\nDELETE FROM course_crosswalk;\nDELETE FROM course_way;\nDELETE FROM course;\nDELETE FROM busan_crosswalk;\nDELETE FROM src_dataset WHERE id IN ('" + DATASET_ID + "', '" + OSM_DATASET_ID + "', '" + SIGNAL_DATASET_ID + "');");
 emit(`INSERT INTO src_dataset (id,name,provider,url,as_of,license,row_count,note) VALUES (${[
   q(OSM_DATASET_ID), q("OpenStreetMap 해운대구 횡단보도·신호기 노드"), q("OpenStreetMap contributors (Overpass API)"),
   q("https://www.openstreetmap.org/copyright"), q(new Date().toISOString().slice(0, 10)), q("ODbL (출처표시·동일조건)"), osmPts.length,
@@ -189,13 +197,33 @@ for (let i = 0; i < osmPts.length; i += 100) {
 emit(`INSERT INTO src_dataset (id,name,provider,url,as_of,license,row_count,note) VALUES (${[
   q(DATASET_ID), q("부산광역시_신호등 설치 횡단보도 위치정보"), q("부산광역시 교통정보서비스센터"),
   q("https://www.data.go.kr/data/3072152/fileData.do"), q("2025-04-23"), q("이용허락범위 제한 없음"), crosswalks.length,
-  q("신호등이 있는 횡단보도만 포함. 교차로명은 주변 건물명 라벨. 코스 경로는 OpenStreetMap(ODbL) 선형을 사용."),
+  q("원본은 부산 전체(3,815행)이며 해운대구 행만 적재. 신호등이 있는 횡단보도만 포함(신호 없는 횡단보도는 없음). 교차로명은 주변 건물명 라벨. 코스 경로는 OpenStreetMap(ODbL) 선형을 사용."),
 ].join(",")});`);
 
 for (let i = 0; i < crosswalks.length; i += 100) {
   const vals = crosswalks.slice(i, i + 100).map((c) =>
     `(${[c.id, q(c.gu), q(c.dong), q(c.ri), q(c.jibun), q(c.name), q(c.signal), q(c.width), q(c.length), q(c.area), c.lon, c.lat, q(DATASET_ID)].join(",")})`);
   emit(`INSERT INTO busan_crosswalk (id,gu,dong,ri,jibun,intersection_name,signal,width_m,length_m,area_m2,lon,lat,dataset_id) VALUES\n${vals.join(",\n")};`);
+}
+
+emit(`INSERT INTO src_dataset (id,name,provider,url,as_of,license,row_count,note) VALUES (${[
+  q(SIGNAL_DATASET_ID), q("부산광역시_신호등 현황(SHP) — 교통신호제어기 위치"), q("부산광역시 교통정보서비스센터"),
+  q("https://www.data.go.kr/data/15084253/fileData.do"), q("2025-08-26"), q("이용허락범위 제한 없음"), signals.length,
+  q("원본은 부산 전체(2,391행)이며 해운대구 행만 적재. 교차로 신호제어기 단위 위치(보행 신호등 개별 위치 아님). 행의 데이터기준일자는 2020-12-31로 오래됨."),
+].join(",")});`);
+for (let i = 0; i < signals.length; i += 100) {
+  const vals = signals.slice(i, i + 100).map((s) => `(${[s.sid, q(s.mgmt_no), q(s.control_kind), q(s.control_kind_norm), q(s.sigungu), q(s.dong), q(s.address), q(s.place), q(s.road), q(s.road_type), s.is_signal, q(s.note), q(s.installed_on), q(s.confirmed_on), s.lon, s.lat, q(SIGNAL_DATASET_ID)].join(",")})`);
+  emit(`INSERT INTO busan_signal (id,mgmt_no,control_kind,control_kind_norm,sigungu,dong,address,place,road,road_type,is_signal,note,installed_on,confirmed_on,lon,lat,dataset_id) VALUES\n${vals.join(",\n")};`);
+}
+for (let i = 0; i < clusters.length; i += 100) {
+  emit(`INSERT INTO crosswalk_cluster (crosswalk_id,cluster_id,is_primary) VALUES ${clusters.slice(i, i + 100).map((c) => `(${c.crosswalk_id},${c.cluster_id},${c.is_primary})`).join(",")};`);
+}
+for (let i = 0; i < links.length; i += 100) {
+  emit(`INSERT INTO crosswalk_signal_link (crosswalk_id,signal_id,distance_m,matched) VALUES ${links.slice(i, i + 100).map((l) => `(${l.crosswalk_id},${l.signal_id},${l.distance_m},${l.matched})`).join(",")};`);
+}
+{
+  const at = new Date().toISOString();
+  emit(`INSERT INTO data_check (subject,metric,value,note,checked_at) VALUES\n${checks.map((c) => `(${[q(c.subject), q(c.metric), q(c.value), q(c.note), q(at)].join(",")})`).join(",\n")};`);
 }
 
 for (const def of COURSES) {

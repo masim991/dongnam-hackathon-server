@@ -116,3 +116,12 @@ npm run cf:whoami
 2. 프로젝트 루트 `.dev.vars`에 `DURUNUBI_SERVICE_KEY=발급키` 저장(Git 제외 파일)
 3. `node scripts/durunubi-compare.mjs --save` → 해파랑길 GPX와 해운대 코스를 비교해 30m 이내 비율·최대 이탈을 `course_reference_compare`에 저장
 - 키 없이 `--selftest`로 비교 함수는 시험했습니다(통과). **오퍼레이션 경로(`routeList`/`courseList`)와 응답 필드(`gpxpath` 등)는 명세서를 열람하지 못해 가정한 값**입니다. 실패하면 응답 키 목록이 출력되므로 `FIELD` 상수를 고치면 됩니다.
+
+### 산책로 벡터·날씨·500m 정밀화 (2026-11-27)
+
+자세한 규칙·한계는 [docs/trail-context.md](docs/trail-context.md). 요약:
+- `public/data/trails/`: 부울경 OSM 산책로·산길 벡터 조각(수집·변환은 `scripts/fetch-trails.mjs`, `fetch-boundaries.mjs`, `build-trails.mjs`). 수집이 오래 걸려 `index.json`의 통계로 완료 여부를 확인합니다.
+- `public/data/haeundae/trail-context.json`: 해운대 산책로 선분 기준 500m 이내 신호제어기·횡단보도·경사 구간.
+- `GET /api/weather`: 해운대 구역별 러닝 날씨 판정(Open-Meteo). 빈·오래된 응답은 판정 불가로 제외.
+- **D1 무료 쓰기 한도 소진**으로 새 표 적재는 `node scripts/db-apply.mjs --pending`(내일 09:00 KST 이후)로 미뤘습니다.
+- Android·삼성헬스(Health Connect 읽기 전용 모듈)는 Codex가 `android/`, `docs/android-health-connect.md`에서 진행 중입니다.

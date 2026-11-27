@@ -134,3 +134,89 @@ CREATE TABLE IF NOT EXISTS course_reference_compare (
   max_dev_m REAL,
   compared_at TEXT NOT NULL
 );
+-- 9) 신호제어기(교차로 신호등) 위치. 현재 해운대구만 적재. 보행 신호등 개별 위치가 아니라 제어기 단위
+CREATE TABLE IF NOT EXISTS busan_signal (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  mgmt_no TEXT,                    -- 원본 관리번호(mgrnu). 드물게 중복·오입력 있음
+  control_kind TEXT,               -- 원본 name 필드(표기 흔들림 있음)
+  control_kind_norm TEXT,          -- 정규화: 전자신호제어 / 일반신호제어 / 기타
+  sigungu TEXT NOT NULL,
+  dong TEXT,                       -- 주소에서 뽑은 법정동(도로명이 적힌 주소는 NULL)
+  address TEXT,
+  place TEXT,                      -- 설치장소
+  road TEXT,
+  road_type TEXT,                  -- 교차로 / 단일로 / 모뎀 / 가변차로
+  is_signal INTEGER NOT NULL DEFAULT 1, -- 0: 모뎀 등 신호기가 아닌 장비
+  note TEXT,                       -- 중복 관리번호 등 정제 메모
+  installed_on TEXT,
+  confirmed_on TEXT,               -- 행의 데이터기준일자(오래된 값일 수 있음)
+  lon REAL NOT NULL,
+  lat REAL NOT NULL,
+  dataset_id TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_busan_signal_latlon ON busan_signal (lat, lon);
+CREATE INDEX IF NOT EXISTS idx_busan_signal_sigungu ON busan_signal (sigungu);
+
+-- 10) 데이터 품질 점검 기록(어떤 데이터를 언제 어떻게 확인했는지)
+CREATE TABLE IF NOT EXISTS data_check (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  value TEXT NOT NULL,
+  note TEXT,
+  checked_at TEXT NOT NULL
+);
+-- 11) 횡단보도 정제: 12m 이내 점을 하나의 건널목으로 묶음(대표 점만 is_primary=1)
+CREATE TABLE IF NOT EXISTS crosswalk_cluster (
+  crosswalk_id INTEGER PRIMARY KEY,
+  cluster_id INTEGER NOT NULL,
+  is_primary INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_crosswalk_cluster_cid ON crosswalk_cluster (cluster_id);
+
+-- 12) 횡단보도 ↔ 가장 가까운 신호제어기. matched=1 은 100m 이내
+CREATE TABLE IF NOT EXISTS crosswalk_signal_link (
+  crosswalk_id INTEGER PRIMARY KEY,
+  signal_id INTEGER NOT NULL,
+  distance_m REAL NOT NULL,
+  matched INTEGER NOT NULL
+);
+
+-- 13) 마이그레이션 기록(한 번만 실행되는 구조 변경)
+CREATE TABLE IF NOT EXISTS schema_migration (
+  id TEXT PRIMARY KEY,
+  applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+-- 14) 해운대 산책로 기준 500m 이내 상세(신호제어기·횡단보도·경사). 정의는 docs/trail-context.md
+CREATE TABLE IF NOT EXISTS haeundae_trail (
+  id INTEGER PRIMARY KEY,              -- OSM way ID(큐레이션 경로는 -1)
+  name TEXT,
+  kind TEXT,                           -- path/track/footway/curated/course 등
+  source TEXT,                         -- osm / curated / course:코드
+  length_m INTEGER,
+  geometry_geojson TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS trail_context_signal (
+  signal_id INTEGER PRIMARY KEY,
+  mgmt_no TEXT, place TEXT, kind TEXT,
+  lon REAL NOT NULL, lat REAL NOT NULL,
+  distance_m INTEGER NOT NULL,         -- 가장 가까운 산책로 선분까지(500 이하)
+  nearest_trail_id INTEGER
+);
+CREATE TABLE IF NOT EXISTS trail_context_crosswalk (
+  crosswalk_id INTEGER PRIMARY KEY,
+  name TEXT,
+  lon REAL NOT NULL, lat REAL NOT NULL,
+  distance_m INTEGER NOT NULL,
+  nearest_trail_id INTEGER,
+  is_primary INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS trail_context_slope (
+  segment_id INTEGER PRIMARY KEY,      -- 외부 경사 표의 segment_id
+  start_lon REAL NOT NULL, start_lat REAL NOT NULL, end_lon REAL NOT NULL, end_lat REAL NOT NULL,
+  grade_pct REAL NOT NULL, length_m REAL NOT NULL,
+  distance_m INTEGER NOT NULL,
+  nearest_trail_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_trail_context_slope_latlon ON trail_context_slope (start_lat, start_lon);

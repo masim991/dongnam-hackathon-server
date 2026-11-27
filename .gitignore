@@ -10,3 +10,4 @@ dist/
 .claude/settings.local.json
 *.log
 db/generated/
+data/raw/trails_cells/

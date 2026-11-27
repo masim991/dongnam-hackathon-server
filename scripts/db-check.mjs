@@ -28,6 +28,19 @@ check("모든 코스에 경로가 있음", one("SELECT COUNT(*) FROM course c WH
 
 check("course_entrance가 없는 코스를 가리키지 않음", one("SELECT COUNT(*) FROM course_entrance e LEFT JOIN course c ON c.code=e.course_code WHERE c.code IS NULL") === 0);
 
+// 해운대구만 적재했는지(다른 구 데이터가 섞이지 않았는지)
+check("busan_crosswalk 전부 해운대구", one("SELECT COUNT(*) FROM busan_crosswalk WHERE gu <> '해운대구'") === 0);
+check("busan_signal 전부 해운대구", one("SELECT COUNT(*) FROM busan_signal WHERE sigungu <> '해운대구'") === 0);
+check("busan_crosswalk·busan_signal 행이 있음", one("SELECT COUNT(*) FROM busan_crosswalk") > 400 && one("SELECT COUNT(*) FROM busan_signal") > 200);
+check("모든 횡단보도가 crosswalk_cluster에 있음", one("SELECT COUNT(*) FROM busan_crosswalk c LEFT JOIN crosswalk_cluster k ON k.crosswalk_id=c.id WHERE k.crosswalk_id IS NULL") === 0);
+check("모든 횡단보도에 가까운 제어기 연결이 있음", one("SELECT COUNT(*) FROM busan_crosswalk c LEFT JOIN crosswalk_signal_link l ON l.crosswalk_id=c.id WHERE l.crosswalk_id IS NULL") === 0);
+check("연결된 제어기는 모두 신호기(모뎀 제외)", one("SELECT COUNT(*) FROM crosswalk_signal_link l JOIN busan_signal s ON s.id=l.signal_id WHERE s.is_signal=0") === 0);
+check("course_crosswalk가 해운대구 밖 횡단보도를 가리키지 않음", one("SELECT COUNT(*) FROM course_crosswalk cc JOIN busan_crosswalk c ON c.id=cc.crosswalk_id WHERE c.gu <> '해운대구'") === 0);
+check("busan_signal 출처가 src_dataset에 등록됨", one("SELECT COUNT(*) FROM src_dataset WHERE id='busan-signal-ctrl-20250826'") === 1);
+check("data_check에 부산 전역 기록이 남아 있지 않음", one("SELECT COUNT(*) FROM data_check WHERE subject IN ('busan_signal','signal×crosswalk','signal×osm')") === 0);
+check("data_check 기록이 있음", one("SELECT COUNT(*) FROM data_check") > 0);
+check("마이그레이션 0001 기록됨", one("SELECT COUNT(*) FROM schema_migration WHERE id LIKE '0001_%'") === 1);
+
 // 4) 경사 영역은 신호 영역과 섞이지 않았는지(외부 표는 읽기만)
 const slopeExists = query("SELECT name FROM sqlite_master WHERE name='haeundae_walking_grade10_20261127'").length > 0;
 if (slopeExists) {

@@ -17,12 +17,23 @@ const json = (data: unknown, status = 200, extra: Record<string, string> = {}) =
 
 type Row = Record<string, unknown>;
 
+// bbox=서,남,동,북 — 한국 범위 안, 폭·높이 0.05도 이하만 허용(축소 화면에서의 대량 조회 방지)
+function parseBbox(url: URL): [number, number, number, number] | null {
+  const bbox = (url.searchParams.get("bbox") ?? "").split(",").map(Number);
+  const [w, s, e, n] = bbox;
+  if (bbox.length !== 4 || bbox.some((v) => !Number.isFinite(v)) || w >= e || s >= n || e - w > 0.05 || n - s > 0.05
+    || w < 124 || e > 132.2 || s < 32.8 || n > 38.8) return null;
+  return [w, s, e, n];
+}
+const BAD_BBOX = "bbox must be west,south,east,north within Korea and at most 0.05 degrees wide/high";
+
 export async function handleCourseApi(url: URL, env: Env): Promise<Response | null> {
   const { pathname } = url;
   const isCourses = pathname === "/api/courses";
   const geo = pathname.match(/^\/api\/courses\/([^/]+)\/geojson$/);
   const isCrosswalks = pathname === "/api/crosswalks";
-  if (!isCourses && !geo && !isCrosswalks) return null;
+  const isSignals = pathname === "/api/signals";
+  if (!isCourses && !geo && !isCrosswalks && !isSignals) return null;
   if (!env.DB) return json({ error: "Database not configured" }, 503, { "Cache-Control": "no-store" });
   const db = env.DB;
 
@@ -69,12 +80,22 @@ export async function handleCourseApi(url: URL, env: Env): Promise<Response | nu
     });
   }
 
-  // /api/crosswalks?bbox=서,남,동,북 — 신호등 있는 횡단보도(공공 파일). 축소 화면에서의 대량 조회를 막기 위해 상한을 둔다.
-  const bbox = (url.searchParams.get("bbox") ?? "").split(",").map(Number);
-  const [w, s, e, n] = bbox;
-  if (bbox.length !== 4 || bbox.some((v) => !Number.isFinite(v)) || w >= e || s >= n || e - w > 0.05 || n - s > 0.05
-    || w < 124 || e > 132.2 || s < 32.8 || n > 38.8) {
-    return json({ error: "bbox must be west,south,east,north within Korea and at most 0.05 degrees wide/high" }, 400, { "Cache-Control": "no-store" });
+  // /api/crosswalks?bbox=서,남,동,북 — 신호등 있는 횡단보도(공공 파일). /api/signals?bbox= — 부산 신호제어기(교차로 단위) 위치.
+  const box = parseBbox(url);
+  if (!box) return json({ error: BAD_BBOX }, 400, { "Cache-Control": "no-store" });
+  const [w, s, e, n] = box;
+  if (isSignals) {
+    const sig = (await db.prepare(
+      "SELECT id,mgmt_no,sigungu,place,road_type,lon,lat FROM busan_signal WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? LIMIT ?",
+    ).bind(s, n, w, e, MAX_POINTS).all<Row>()).results;
+    return json({
+      type: "FeatureCollection",
+      features: sig.map((r) => ({
+        type: "Feature",
+        properties: { id: r.id, mgmtNo: r.mgmt_no, sigungu: r.sigungu, label: r.place, roadType: r.road_type },
+        geometry: { type: "Point", coordinates: [r.lon, r.lat] },
+      })),
+    });
   }
   const rows = (await db.prepare(
     "SELECT id,intersection_name,dong,lon,lat FROM busan_crosswalk WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? LIMIT ?",
