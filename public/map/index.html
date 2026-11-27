@@ -32,8 +32,10 @@
   </details>
   <details id="layers" class="section">
     <summary>지도 레이어</summary>
+    <label class="layer-option"><input type="checkbox" id="lyNetwork" checked> 해운대 정밀 길 · 도로·보도·산책로 (12단계~)</label>
+    <p id="networkStatus" class="note" role="status" aria-live="polite"></p>
     <label class="layer-option"><input type="checkbox" id="lyTrails"> 부울경 산책로·산길(OSM, 12단계 이상)</label>
-    <label class="layer-option"><input type="checkbox" id="lySlope"> 해운대 산책로에 맞춘 경사 (산책로 레이어 필요, 13단계~)</label>
+    <label class="layer-option"><input type="checkbox" id="lySlope"> 해운대 길에 맞춘 경사 (13단계~)</label>
     <label class="layer-option"><input type="checkbox" id="lyNearbySlope"> 주변 경사 원본 · 회색 점선 (15단계~)</label>
     <p id="slopeStatus" class="note" role="status" aria-live="polite"></p>
     <ul class="legend slope-legend" aria-label="경사 크기 범례">
@@ -55,6 +57,8 @@
     <p id="gpxInfo" role="status" aria-live="polite"></p>
   </details>
   <ul class="legend">
+    <li><i class="sw line sw-nearby"></i>회색 점선: 공사 구간의 옛 트랙(현재 통행 안내 아님)</li>
+    <li><i class="sw line sw-route-uncertain"></i>주황 점선: 우회 후보 또는 미검증 연결선</li>
     <li><i class="sw sw-crosswalk"></i>신호등 있는 횡단보도(부산시 공공데이터)</li>
     <li><i class="sw sw-controller"></i>신호제어기(교차로 단위, 14단계 이상 확대 시)</li>
     <li><i class="sw sw-osm-signal"></i>OSM 신호 횡단(참고)</li>

@@ -1,0 +1,74 @@
+[
+  {
+    "code": "HD-BEACHPROM",
+    "restored": 0,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": false,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-BEACHPROM-EXT",
+    "restored": 2,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": true,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-BEACHROAD",
+    "restored": 0,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": false,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-DALMAJI",
+    "restored": 4,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": true,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-DONGBAEK",
+    "restored": 1,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": true,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 4
+  },
+  {
+    "code": "HD-GALMAET",
+    "restored": 1,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": true,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-MOONTAN",
+    "restored": 1,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": false,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-SONGJEONG",
+    "restored": 0,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": false,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  },
+  {
+    "code": "HD-SUYEONG",
+    "restored": 1,
+    "remainingStraightLinks": 0,
+    "roadAccessUnverified": true,
+    "curatedManualLinks": 0,
+    "replacedCuratedManualLinks": 0
+  }
+]

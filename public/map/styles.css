@@ -97,4 +97,5 @@ html, body, #map { margin: 0; height: 100%; }
 .sw-slope-mid { --sw: var(--c-slopeMid); }
 .sw-slope-high { --sw: var(--c-slopeHigh); }
 .sw.line.sw-nearby { background: none; border-top: 2px dashed var(--c-nearby); }
+.sw.line.sw-route-uncertain { background: none; border-top: 2px dashed var(--c-bridge); }
 .layer-option:focus-within { outline: var(--focus-ring); outline-offset: 2px; }

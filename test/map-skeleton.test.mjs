@@ -200,3 +200,51 @@ test("a slope option selected before map load is applied when the map becomes re
   assert.match(app.elements.slopeStatus.textContent, /추정값/);
   assert.ok(app.requests.includes("/data/haeundae/trail-context.json"));
 });
+
+
+test("official courses remain available when D1 is down and never report unanalysed crossings as zero", async (t) => {
+  const course = { code: "GM-8-2", name: "갈맷길 8-2", kind: "official", length_m: 7600, geojson: "/data/galmaetgil/8-2.geojson", note: "부산시 공식 GPX", sourceUrl: "https://www.busan.go.kr/galmaetgil/notice03/1653637" };
+  const fc = { type: "FeatureCollection", metadata: { trafficCoverage: "not_analyzed" }, features: [path(0, 100, { layer: "course" })] };
+  const app = boot({ get: (url) => {
+    if (url === "/api/courses") return Response.json({ error: "unavailable" }, { status: 503 });
+    if (url === "/data/galmaetgil/index.json") return Response.json({ courses: [course] });
+    if (url === course.geojson) return Response.json(fc);
+  } });
+  t.after(app.close); await flush(); app.loadMap();
+  assert.equal(app.elements.list.children.length, 1);
+  app.elements.list.children[0].handlers.click(); await flush();
+  assert.match(app.elements.info.textContent, /공식 GPX/);
+  const detail = app.elements.detail.children.map((e) => e.textContent).join(" ");
+  assert.match(detail, /아직 분석하지 않았/);
+  assert.doesNotMatch(detail, /횡단보도 0곳/);
+});
+
+test("original short sidewalks survive network rendering, and a late network response cannot undo turning it off", async (t) => {
+  let release;
+  const network = { nodes: { 1: point(0), 2: point(3) }, ways: [{ id: 12, hw: "footway", footway: "crossing", walk: "yes", nodes: [1, 2] }] };
+  const app = boot({ get: (url) => url === "/data/haeundae/walking-network.json" ? new Promise((resolve) => { release = () => resolve(Response.json(network)); }) : undefined });
+  t.after(app.close); await flush(); app.loadMap();
+  app.elements.lyNetwork.checked = true; app.elements.lyNetwork.handlers.change(); await flush();
+  app.elements.lyNetwork.checked = false; app.elements.lyNetwork.handlers.change(); release(); await flush();
+  assert.equal(app.window.map.getSource("hdNetwork").data.features.length, 0);
+  app.elements.lyNetwork.checked = true; app.elements.lyNetwork.handlers.change(); await flush();
+  const features = app.window.map.getSource("hdNetwork").data.features;
+  assert.equal(features.length, 1); assert.equal(features[0].geometry.coordinates.length, 2);
+  assert.equal(features[0].properties.footway, "crossing");
+});
+
+
+test("refined HD courses retain baseline signal counts and exclude unverified road connectors from slope analysis", async (t) => {
+  const course = { code: "HD-TEST", name: "보완 코스", kind: "trail", length_m: 100, geojson: "/data/haeundae/courses/HD-TEST.geojson", unique_crossings: 8, buffer_m: 20, crossings: [], note: "횡단보도 수는 경로 보완 전 집계입니다." };
+  const fc = { type: "FeatureCollection", metadata: { trafficCoverage: "baseline_before_repair" }, features: [path(0, 10, { layer: "course" }), path(10, 100, { layer: "course", highway: "network_connector", roadAccessUnverified: true })] };
+  const app = boot({ get: (url) => {
+    if (url === "/data/haeundae/courses/index.json") return Response.json({ courses: [course] });
+    if (url === course.geojson) return Response.json(fc);
+    if (url === "/data/haeundae/trail-context.json") return Response.json({ slope: [incline(1, point(20), point(40), 25)], signals: [] });
+  } });
+  t.after(app.close); await flush(); app.loadMap();
+  app.elements.list.children[0].handlers.click(); await flush();
+  assert.match(app.elements.info.textContent, /신호 횡단보도 8곳/);
+  assert.match(app.elements.detail.children.map((e) => e.textContent).join(" "), /경로 보완 전 집계/);
+  assert.equal(app.window.map.getSource("courseSlope").data.features.length, 0);
+});

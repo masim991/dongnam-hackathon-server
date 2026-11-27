@@ -1,0 +1,58 @@
+{
+  "sourceDate": "2024-10-01",
+  "sourceUrl": "https://www.busan.go.kr/galmaetgil/notice03/1653637",
+  "courses": [
+    {
+      "code": "GM-2-1",
+      "name": "갈맷길 2-1 · 송정해수욕장 → 민락교",
+      "kind": "official",
+      "length_m": 11586,
+      "official_length_m": 12000,
+      "geojson": "/data/galmaetgil/2-1.geojson",
+      "note": "부산시 공식 GPX(2024-10-01), 원본 좌표·트랙 구분 보존. 현장 통행 가능 여부는 별도 확인.",
+      "sourceUrl": "https://www.busan.go.kr/galmaetgil/notice03/1653637",
+      "alert": "수영만요트경기장 공사(2026.10~2028.5 예정): 옛 트랙은 회색 점선입니다. 공식 안내도와 대조한 외곽 우회 후보 약 445m를 주황 점선으로 표시합니다. 접속 4.3m는 안내도 기반 추정이며 OSM 공유 노드가 없습니다. 진입 서비스도로 약 15m와 현장 보행 가능 여부는 미확인입니다. 안내 거리는 2024 GPX 기준입니다.",
+      "noticeUrl": "https://www.busan.go.kr/galmaetgil/notice01/1745240",
+      "crossings": []
+    },
+    {
+      "code": "GM-2-2",
+      "name": "갈맷길 2-2 · 민락교 → 오륙도 진입데크",
+      "kind": "official",
+      "length_m": 11349,
+      "official_length_m": 11400,
+      "geojson": "/data/galmaetgil/2-2.geojson",
+      "note": "부산시 공식 GPX(2024-10-01), 원본 좌표·트랙 구분 보존. 현장 통행 가능 여부는 별도 확인.",
+      "sourceUrl": "https://www.busan.go.kr/galmaetgil/notice03/1653637",
+      "alert": "",
+      "noticeUrl": null,
+      "crossings": []
+    },
+    {
+      "code": "GM-8-1",
+      "name": "갈맷길 8-1 · 상현마을 → 동천교",
+      "kind": "official",
+      "length_m": 10749,
+      "official_length_m": 10700,
+      "geojson": "/data/galmaetgil/8-1.geojson",
+      "note": "부산시 공식 GPX(2024-10-01), 원본 좌표·트랙 구분 보존. 현장 통행 가능 여부는 별도 확인.",
+      "sourceUrl": "https://www.busan.go.kr/galmaetgil/notice03/1653637",
+      "alert": "",
+      "noticeUrl": null,
+      "crossings": []
+    },
+    {
+      "code": "GM-8-2",
+      "name": "갈맷길 8-2 · 동천교 → 민락교",
+      "kind": "official",
+      "length_m": 7342,
+      "official_length_m": 7600,
+      "geojson": "/data/galmaetgil/8-2.geojson",
+      "note": "부산시 공식 GPX(2024-10-01), 원본 좌표·트랙 구분 보존. 현장 통행 가능 여부는 별도 확인.",
+      "sourceUrl": "https://www.busan.go.kr/galmaetgil/notice03/1653637",
+      "alert": "",
+      "noticeUrl": null,
+      "crossings": []
+    }
+  ]
+}

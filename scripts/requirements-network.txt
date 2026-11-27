@@ -1,0 +1,3 @@
+# Optional Haeundae PBF network extraction; verified with Python 3.12.
+osmium==4.3.2
+shapely==2.2.0

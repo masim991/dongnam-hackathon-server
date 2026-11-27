@@ -6,7 +6,7 @@ export const CONFIG = {
   STYLE_URL: 'https://tiles.openfreemap.org/styles/positron',
   // 대한민국 대략 범위 [서, 남, 동, 북] (독도·제주·마라도 포함, 행정경계 아님)
   BOUNDS: [[124.0, 32.8], [132.2, 38.8]],
-  START: { center: [129.03, 35.12], zoom: 11 },
+  START: { center: [129.17, 35.20], zoom: 12 },
 };
 
 export const THEME = {

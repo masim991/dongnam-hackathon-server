@@ -1,0 +1,19 @@
+{
+  "publisher": "부산광역시",
+  "sourceDate": "2024-10-01",
+  "sourceUrl": "https://www.busan.go.kr/galmaetgil/notice03/1653637",
+  "downloadUrl": "https://www.busan.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=1653637&fileTy=ATTACH&fileNo=1",
+  "archiveSha256": "ffe8daac2b3bdd2e20b0e3b35a408f99e80a34e01761d98c11b764f603d19ba0",
+  "files": {
+    "2-1.gpx": "aedc91220626bb0f09b6f8ce7954da36d39fae9ebe18c29ebdf1a46607cadaf4",
+    "2-2.gpx": "cc242c516a049ae4afaa75b3d4ab6214adba5072a7a6b11f8967e0b8ba1bd83e",
+    "8-1.gpx": "9f5a8844777044da54b89b187b1d76a058ab9da1d7a211d8b7ac40aea43572a2",
+    "8-2.gpx": "8496317b37801e7c1e997215c2db5c67f0e1b846fcf41a561bc3d0ff99afc93b"
+  },
+  "noticeUrl": "https://www.busan.go.kr/galmaetgil/notice01/1745240",
+  "noticeImageUrl": "https://www.busan.go.kr/data/synap/20260730/files/2dc048e1-c394-45fd-80b9-fb28ff69fea5.png",
+  "notes": [
+    "공식 GPX는 2024년 자료이며 현재 통행 가능성을 보장하지 않습니다.",
+    "2026년 우회도는 이미지 자료입니다. 표시한 외곽 보도는 OSM 기반 후보이고 GPX 접속부는 미검증입니다."
+  ]
+}

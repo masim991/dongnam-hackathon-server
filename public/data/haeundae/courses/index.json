@@ -1,0 +1,281 @@
+{
+  "courses": [
+    {
+      "code": "HD-BEACHPROM",
+      "name": "해운대 해변 산책로(해운대해변로 북측 보행로)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 939,
+      "way_count": 5,
+      "buffer_m": 20,
+      "matched_points": 0,
+      "unique_crossings": 0,
+      "crossings_per_km": 0,
+      "note": "원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 0
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 1
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-BEACHPROM.geojson"
+    },
+    {
+      "code": "HD-BEACHPROM-EXT",
+      "name": "해운대 해변 산책로 미포 연장",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 546,
+      "way_count": 4,
+      "buffer_m": 20,
+      "matched_points": 0,
+      "unique_crossings": 0,
+      "crossings_per_km": 0,
+      "note": "원본 OSM 길로 연결 2곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 0
+        },
+        {
+          "source": "osm",
+          "kind": "unknown",
+          "count": 2
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 3
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-BEACHPROM-EXT.geojson"
+    },
+    {
+      "code": "HD-BEACHROAD",
+      "name": "해운대해변로(차도 기준 근사)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "road_proxy",
+      "length_m": 4614,
+      "way_count": 20,
+      "buffer_m": 20,
+      "matched_points": 36,
+      "unique_crossings": 36,
+      "crossings_per_km": 7.8,
+      "note": "원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 36
+        },
+        {
+          "source": "osm",
+          "kind": "signal",
+          "count": 8
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 16
+        },
+        {
+          "source": "osm",
+          "kind": "marked",
+          "count": 7
+        },
+        {
+          "source": "osm",
+          "kind": "unknown",
+          "count": 2
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-BEACHROAD.geojson"
+    },
+    {
+      "code": "HD-DALMAJI",
+      "name": "달맞이길(차도 기준 근사)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "road_proxy",
+      "length_m": 6837,
+      "way_count": 20,
+      "buffer_m": 20,
+      "matched_points": 11,
+      "unique_crossings": 11,
+      "crossings_per_km": 1.74,
+      "note": "원본 OSM 길로 연결 4곳 복원. 미확인 직선 연결 0곳. 짧은 틈 대신 실제 도로 약 313m 우회를 포함합니다. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 11
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 23
+        },
+        {
+          "source": "osm",
+          "kind": "unknown",
+          "count": 3
+        },
+        {
+          "source": "osm",
+          "kind": "unmarked",
+          "count": 2
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-DALMAJI.geojson"
+    },
+    {
+      "code": "HD-DONGBAEK",
+      "name": "동백섬 순환 산책로",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 1802,
+      "way_count": 1,
+      "buffer_m": 20,
+      "matched_points": 0,
+      "unique_crossings": 0,
+      "crossings_per_km": 0,
+      "note": "원본 OSM 길로 연결 1곳 복원. 동백섬 수동 직선 4곳을 원본 길로 교체했습니다. 원래 경유점을 유지하여 일부 왕복이 포함됩니다. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 0
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 2
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-DONGBAEK.geojson"
+    },
+    {
+      "code": "HD-GALMAET",
+      "name": "갈맷길(해운대 구간)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 8734,
+      "way_count": 6,
+      "buffer_m": 20,
+      "matched_points": 0,
+      "unique_crossings": 0,
+      "crossings_per_km": 0,
+      "note": "원본 OSM 길로 연결 1곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 0
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 1
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-GALMAET.geojson"
+    },
+    {
+      "code": "HD-MOONTAN",
+      "name": "달맞이 문탠로드",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 1456,
+      "way_count": 19,
+      "buffer_m": 20,
+      "matched_points": 0,
+      "unique_crossings": 0,
+      "crossings_per_km": 0,
+      "note": "원본 OSM 길로 연결 1곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 0
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-MOONTAN.geojson"
+    },
+    {
+      "code": "HD-SONGJEONG",
+      "name": "송정 해안(송정옛길·동암해안길)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 2101,
+      "way_count": 6,
+      "buffer_m": 20,
+      "matched_points": 0,
+      "unique_crossings": 0,
+      "crossings_per_km": 0,
+      "note": "원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 0
+        },
+        {
+          "source": "osm",
+          "kind": "uncontrolled",
+          "count": 2
+        },
+        {
+          "source": "osm",
+          "kind": "signal",
+          "count": 1
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-SONGJEONG.geojson"
+    },
+    {
+      "code": "HD-SUYEONG",
+      "name": "수영강 자전거길(해운대 구간)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "riverside",
+      "length_m": 12530,
+      "way_count": 11,
+      "buffer_m": 20,
+      "matched_points": 4,
+      "unique_crossings": 4,
+      "crossings_per_km": 0.32,
+      "note": "원본 OSM 길로 연결 1곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [
+        {
+          "source": "busan_signal_crosswalk",
+          "kind": "signal",
+          "count": 4
+        }
+      ],
+      "geojson": "/data/haeundae/courses/HD-SUYEONG.geojson"
+    }
+  ]
+}
