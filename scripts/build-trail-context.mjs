@@ -69,7 +69,8 @@ function nearestTrail(p) {
 }
 
 // 3) 대상 데이터
-const signals = readHaeundaeSignals(path.join(root, "data/raw/busan_signal_ctrl_20250826.csv")).filter((s) => s.is_signal);
+// sid 는 build-haeundae-courses.mjs 가 D1 busan_signal.id 로 쓰는 값과 같게(전체 목록 순번) 부여한 뒤 신호기만 남긴다.
+const signals = readHaeundaeSignals(path.join(root, "data/raw/busan_signal_ctrl_20250826.csv")).map((s, i) => ({ ...s, sid: i + 1 })).filter((s) => s.is_signal);
 const xtext = new TextDecoder("euc-kr").decode(await readFile(path.join(root, "data/raw/busan_crosswalk_20250423.csv"))).replace(/^﻿/, "").trim().split(/\r?\n/);
 const xh = xtext[0].split(",");
 const parseLine = (l) => { const o = []; let f = "", q = false; for (let i = 0; i < l.length; i++) { const c = l[i]; if (q) { if (c === '"') { if (l[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; } else if (c === '"') q = true; else if (c === ",") { o.push(f); f = ""; } else f += c; } o.push(f); return o; };

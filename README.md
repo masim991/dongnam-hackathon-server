@@ -123,5 +123,5 @@ npm run cf:whoami
 - `public/data/trails/`: 부울경 OSM 산책로·산길 벡터 조각(수집·변환은 `scripts/fetch-trails.mjs`, `fetch-boundaries.mjs`, `build-trails.mjs`). 수집이 오래 걸려 `index.json`의 통계로 완료 여부를 확인합니다.
 - `public/data/haeundae/trail-context.json`: 해운대 산책로 선분 기준 500m 이내 신호제어기·횡단보도·경사 구간.
 - `GET /api/weather`: 해운대 구역별 러닝 날씨 판정(Open-Meteo). 빈·오래된 응답은 판정 불가로 제외.
-- **D1 무료 쓰기 한도 소진**으로 새 표 적재는 `node scripts/db-apply.mjs --pending`(내일 09:00 KST 이후)로 미뤘습니다.
+- D1 새 표(`haeundae_trail`, `trail_context_*`)는 `node scripts/db-apply.mjs --pending`으로 적재했습니다(무료 쓰기 한도 주의, docs/trail-context.md).
 - Android·삼성헬스(Health Connect 읽기 전용 모듈)는 Codex가 `android/`, `docs/android-health-connect.md`에서 진행 중입니다.

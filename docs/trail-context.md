@@ -18,14 +18,11 @@
 - 출력: `public/data/haeundae/trail-context.json`(즉시 사용), `db/pending/20261128_trail_context.sql`(D1 대기). 계산: `node scripts/build-trail-context.mjs`.
 - 경사 원본은 다른 세션이 적재한 외부 표(30m 해상도 DEM 기반)라 오차가 크고 최대값은 이상치일 수 있습니다.
 
-## 3. D1 상태와 대기 작업
+## 3. D1 상태 (2026-11-27 갱신)
 
-- 2026-11-27 D1 **무료 일일 쓰기 한도 소진**(code 7500, UTC 자정 = 한국 09:00 초기화). 원인: 전체 재적재 반복과 다른 세션의 경사 적재(3만 행 이상).
-- 오늘 못 한 쓰기(내일 순서대로):
-  1. `node scripts/db-apply.mjs --pending` — 새 표(`haeundae_trail`, `trail_context_*`) 생성 후 대기 SQL 적용(약 1.3만 행).
-  2. (조율 후) `db/pending-manual/20261128_remove_non_haeundae_slope.sql` — 외부 표 `busan_walking_grade10`의 해운대 외 행 삭제. **적재 세션이 멈춘 뒤** 적용. 스냅샷: `db/generated/snapshots/busan_walking_grade10_*.csv`(30,800행).
-- 재적재는 전체 삭제·삽입 대신 필요한 표만 하세요. 한도를 다시 넘기면 쓰기가 막힙니다.
-
+- 오전에 D1 **무료 일일 쓰기 한도 소진**(code 7500)이 한 번 나타났고, 이후 쓰기가 다시 가능해져 대기 작업을 적용했습니다. 한도가 UTC 자정 초기화인지 다른 방식인지는 확인하지 못했습니다.
+- 적용 완료: 새 표 `haeundae_trail`(482)·`trail_context_signal`(207)·`trail_context_crosswalk`(460)·`trail_context_slope`(12,048) 적재(`node scripts/db-apply.mjs --pending`), 외부 표 `busan_walking_grade10`의 해운대 외 행 30,800개 삭제(적재 세션 중단 확인 후, 스냅샷 `db/generated/snapshots/` 보관). 해운대 경사 표 12,677행은 그대로입니다.
+- 한도 재발 방지: 전체 삭제·삽입 재적재를 반복하지 말고 필요한 표만 갱신하세요.
 ## 4. 러닝 날씨 판정 `GET /api/weather?scope=haeundae|region|all`
 
 - 공급자: Open-Meteo(키 불필요, CC BY 4.0). 무료 API는 **비상업 이용 조건**이므로 상용 출시 전 조건 확인이 필요합니다. 기상청 API로 바꾸려면 `src/weather-api.ts`의 공급 부분만 교체하면 됩니다.

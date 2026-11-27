@@ -73,3 +73,4 @@
 - D1 무료 일일 쓰기 한도 소진(code 7500)으로 D1 쓰기를 중단했습니다. 해운대 외 데이터 정리·새 표 적재는 대기 SQL로 준비(`db/pending`, `db/pending-manual`).
 - 산책로 벡터는 D1이 아니라 Worker 정적 에셋(`public/data/trails`)으로 제공합니다. 수집 진행 상태는 `public/data/trails/index.json` 참고.
 - `/api/weather` 추가(Open-Meteo). 결측·오래된 응답은 판정 불가로 처리. 재배포 전이면 이 항목은 로컬 코드 상태입니다.
+- (갱신) D1 쓰기가 다시 가능해져 대기 SQL 적용 완료, 외부 경사 표의 해운대 외 행 30,800개 삭제(스냅샷 보관), db:check 통과.

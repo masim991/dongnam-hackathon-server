@@ -41,6 +41,12 @@ check("data_check에 부산 전역 기록이 남아 있지 않음", one("SELECT 
 check("data_check 기록이 있음", one("SELECT COUNT(*) FROM data_check") > 0);
 check("마이그레이션 0001 기록됨", one("SELECT COUNT(*) FROM schema_migration WHERE id LIKE '0001_%'") === 1);
 
+// 해운대 산책로 500m 이내 상세
+check("trail_context_* 표에 행이 있음", one("SELECT (SELECT COUNT(*) FROM haeundae_trail) > 0 AND (SELECT COUNT(*) FROM trail_context_signal) > 0 AND (SELECT COUNT(*) FROM trail_context_crosswalk) > 0 AND (SELECT COUNT(*) FROM trail_context_slope) > 0") === 1);
+check("trail_context 거리가 모두 500m 이하", one("SELECT (SELECT COUNT(*) FROM trail_context_signal WHERE distance_m > 500) + (SELECT COUNT(*) FROM trail_context_crosswalk WHERE distance_m > 500) + (SELECT COUNT(*) FROM trail_context_slope WHERE distance_m > 500)") === 0);
+check("trail_context의 가장 가까운 산책로가 haeundae_trail에 있음", one("SELECT (SELECT COUNT(*) FROM trail_context_signal s LEFT JOIN haeundae_trail t ON t.id=s.nearest_trail_id WHERE t.id IS NULL) + (SELECT COUNT(*) FROM trail_context_crosswalk s LEFT JOIN haeundae_trail t ON t.id=s.nearest_trail_id WHERE t.id IS NULL) + (SELECT COUNT(*) FROM trail_context_slope s LEFT JOIN haeundae_trail t ON t.id=s.nearest_trail_id WHERE t.id IS NULL)") === 0);
+check("trail_context_signal은 모두 신호기(모뎀 제외)·해운대 제어기", one("SELECT COUNT(*) FROM trail_context_signal c LEFT JOIN busan_signal s ON s.id=c.signal_id WHERE s.id IS NULL OR s.is_signal=0") === 0);
+check("외부 부산 전역 경사 표에 해운대 외 행이 없음", one("SELECT COUNT(*) FROM busan_walking_grade10 WHERE district NOT LIKE '해운대%'") === 0);
 // 4) 경사 영역은 신호 영역과 섞이지 않았는지(외부 표는 읽기만)
 const slopeExists = query("SELECT name FROM sqlite_master WHERE name='haeundae_walking_grade10_20261127'").length > 0;
 if (slopeExists) {
