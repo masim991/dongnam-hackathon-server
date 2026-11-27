@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>지도</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css">
+<style>html,body,#map{margin:0;height:100%}</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+<script>
+// 타일 스타일 주소. 타일 서버를 바꿀 때 여기만 수정한다.
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+// 대한민국 대략 범위 [서, 남, 동, 북] (독도·제주·마라도 포함, 행정경계 아님). 시작 화면은 부울경.
+const BOUNDS = [[124.0, 32.8], [132.2, 38.8]];
+
+// 이름 라벨을 한글(name:ko, 없으면 현지 name)만 쓰도록 바꾼다. 번호판 라벨(ref)은 그대로 둔다.
+function koreanOnly(style) {
+  const ko = ['coalesce', ['get', 'name:ko'], ['get', 'name']];
+  for (const layer of style.layers) {
+    const tf = layer.layout && layer.layout['text-field'];
+    if (tf && JSON.stringify(tf).includes('name')) layer.layout['text-field'] = ko;
+  }
+  return style;
+}
+
+fetch(STYLE_URL).then(r => r.json()).then(style => {
+  window.map = new maplibregl.Map({
+    container: 'map',
+    style: koreanOnly(style),
+    center: [129.03, 35.12],
+    zoom: 11,
+    maxBounds: BOUNDS,
+  });
+});
+</script>
+</body>
+</html>
