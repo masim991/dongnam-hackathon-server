@@ -185,3 +185,59 @@ test("weather API: all areas unknown is an error, not a good day", async () => {
     assert.equal(res.status, 502);
   } finally { globalThis.fetch = orig; }
 });
+// --- 스캐폴드 경계·실패 경로(독립 점검) ---
+const throwingDb = { prepare() { throw new Error("D1_ERROR: secret internal detail"); } };
+const rejectingDb = { prepare() { const all = async () => { throw new Error("D1_ERROR: secret internal detail"); }; return { all, bind: () => ({ all }) }; } };
+
+test("course API: a failing database returns a sanitized JSON 5xx instead of throwing", async () => {
+  for (const DB of [throwingDb, rejectingDb]) {
+    for (const path of ["/api/courses", "/api/courses/HD-X/geojson", "/api/crosswalks?bbox=129.15,35.15,129.18,35.17", "/api/signals?bbox=129.15,35.15,129.18,35.17"]) {
+      const response = await worker.fetch(new Request("https://example.test" + path), { DB });
+      assert.ok(response.status >= 500 && response.status < 600, path + " status " + response.status);
+      assert.equal(response.headers.get("Cache-Control"), "no-store", path);
+      const text = await response.text();
+      assert.ok(!text.includes("secret"), path + " leaked upstream detail");
+      assert.ok(JSON.parse(text).error, path);
+    }
+  }
+});
+
+test("course geojson: a corrupt stored geometry is a sanitized 5xx, not an uncaught exception", async () => {
+  const DB = fakeDb((sql) => sql.includes("FROM course_way") ? [{ osm_way_id: 1, name: "x", highway: "footway", length_m: 1, geometry_geojson: "{not json" }] : []);
+  const response = await worker.fetch(new Request("https://example.test/api/courses/HD-X/geojson"), { DB });
+  assert.ok(response.status >= 500 && response.status < 600);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+});
+
+test("course API: HEAD has no body and bbox rejects malformed or degenerate input", async () => {
+  const DB = fakeDb(() => []);
+  const head = await worker.fetch(new Request("https://example.test/api/courses", { method: "HEAD" }), { DB });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  for (const bbox of ["", "a,b,c,d", "129.1,35.1,129.1,35.1", "129.2,35.1,129.1,35.2", "129.1,35.1,129.12", "129.1,35.1,129.12,35.12,1", "Infinity,35.1,129.1,35.2", "123,35.1,123.02,35.12", "129.1,35.1,129.12,"]) {
+    const response = await worker.fetch(new Request("https://example.test/api/crosswalks?bbox=" + bbox), { DB });
+    assert.equal(response.status, 400, "bbox=" + bbox);
+  }
+});
+
+test("course API: error responses are never cached and lowercase codes are rejected", async () => {
+  const DB = fakeDb(() => []);
+  const lower = await worker.fetch(new Request("https://example.test/api/courses/hd-x/geojson"), { DB });
+  assert.equal(lower.status, 400);
+  assert.equal(lower.headers.get("Cache-Control"), "no-store");
+  const trailing = await worker.fetch(new Request("https://example.test/api/courses/"), { DB });
+  assert.equal(trailing.status, 404);
+});
+
+test("course API: HEAD with a failing database or corrupt geometry returns a body-less 503", async () => {
+  const corrupt = fakeDb((sql) => sql.includes("FROM course_way") ? [{ osm_way_id: 1, name: "x", highway: "footway", length_m: 1, geometry_geojson: "{not json" }] : []);
+  for (const DB of [throwingDb, rejectingDb, corrupt]) {
+    for (const path of ["/api/courses", "/api/courses/HD-X/geojson", "/api/crosswalks?bbox=129.15,35.15,129.18,35.17", "/api/signals?bbox=129.15,35.15,129.18,35.17"]) {
+      const response = await worker.fetch(new Request("https://example.test" + path, { method: "HEAD" }), { DB });
+      if (DB === corrupt && path !== "/api/courses/HD-X/geojson") continue; // 손상 geometry 는 geojson 경로만 해당
+      assert.ok(response.status >= 500 && response.status < 600, path + " status " + response.status);
+      assert.equal(response.headers.get("Cache-Control"), "no-store", path);
+      assert.equal(await response.text(), "", path + " HEAD must have no body");
+    }
+  }
+});

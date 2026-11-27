@@ -19,7 +19,11 @@ let resolveMapReady;
 const mapReady = new Promise((r) => { resolveMapReady = r; }); // 지도 준비 전에 파일을 골라도 준비되면 이어서 처리한다
 const $ = (id) => document.getElementById(id);
 
-fetch(CONFIG.STYLE_URL).then(r => r.json()).then(style => {
+function mapFailed() {
+  $('info').textContent = '지도를 불러오지 못했습니다. 연결을 확인하고 새로고침하세요.';
+  resolveMapReady(false);
+}
+getJson(CONFIG.STYLE_URL).then(style => {
   window.map = new maplibregl.Map({
     container: 'map',
     style: koreanOnly(style),
@@ -27,8 +31,10 @@ fetch(CONFIG.STYLE_URL).then(r => r.json()).then(style => {
     zoom: CONFIG.START.zoom,
     maxBounds: CONFIG.BOUNDS,
   });
-  window.map.on('load', () => { initCourses(); resolveMapReady(); });
-});
+  window.map.on('load', () => {
+    try { initCourses(); resolveMapReady(true); } catch { mapFailed(); }
+  });
+}).catch(mapFailed);
 
 async function getJson(url) {
   const r = await fetch(url);
@@ -117,8 +123,6 @@ function initCourses() {
   $('lyTrails').addEventListener('change', loadTrailsInView);
   $('lySlope').addEventListener('change', toggleSlope);
   $('lyIssues').addEventListener('change', toggleIssues);
-  loadWeather();
-  initHealthBridge();
 }
 
 // 코스 목록은 지도 타일 로딩과 무관하므로 지도 load 를 기다리지 않고 바로 받는다.
@@ -155,7 +159,7 @@ function renderList(courses) {
     b.className = 'btn course-btn';
     b.setAttribute('aria-pressed', 'false');
     b.textContent = c.name + ' (' + (KIND_LABEL[c.kind] || c.kind) + ', ' + (c.length_m / 1000).toFixed(1) + 'km)';
-    b.addEventListener('click', () => mapReady.then(() => selectCourse(c, b))); // 지도 준비 전에 눌러도 준비되면 처리
+    b.addEventListener('click', () => mapReady.then((ready) => { if (ready) return selectCourse(c, b); }));
     list.appendChild(b);
   }
 }
@@ -173,26 +177,40 @@ function installMockHealth() {
 }
 const HEALTH_ERR = { permission_denied: '권한이 없습니다. 연동 권한을 다시 요청하세요.', unavailable: '이 기기에서는 Health Connect를 쓸 수 없습니다.', update_required: 'Health Connect 설치 또는 업데이트가 필요합니다.', failed: '읽는 중 오류가 났습니다.' };
 function initHealthBridge() {
-  if (new URLSearchParams(location.search).get('mockHealth') === '1') installMockHealth();
+  const mock = !window.AndroidHealth && new URLSearchParams(location.search).get('mockHealth') === '1';
+  if (mock) installMockHealth();
   const bridge = window.AndroidHealth;
   if (!bridge) return; // 일반 브라우저에서는 이 구역을 숨긴 채 둔다
   $('health').hidden = false;
   const info = $('healthInfo');
-  const st = bridge.status();
+  let st = 'failed';
+  try {
+    if (typeof bridge.status === 'function' && typeof bridge.requestPermissions === 'function' && typeof bridge.readRecent === 'function') st = bridge.status();
+  } catch { /* 네이티브 오류가 지도나 날씨 초기화를 막지 않도록 한다. */ }
   $('healthConnect').disabled = st !== 'available';
   $('healthRead').disabled = st !== 'available';
   if (st !== 'available') info.textContent = HEALTH_ERR[st] || HEALTH_ERR.unavailable;
+  else if (mock) info.textContent = '모의 데이터 테스트입니다. 실제 건강 기록이 아닙니다.';
   window.onAndroidHealth = (m) => {
-    if (m.type === 'permission') info.textContent = m.granted ? '권한이 허용되었습니다. "최근 7일 불러오기"를 누르세요.' : '권한이 거부되었습니다. 삼성헬스 공유 설정을 확인하세요.';
+    if (!m || typeof m !== 'object') { info.textContent = HEALTH_ERR.failed; return; }
+    if (m.type === 'permission') info.textContent = m.granted === true ? '권한이 허용되었습니다. "최근 7일 불러오기"를 누르세요.' : '권한이 거부되었습니다. 삼성헬스 공유 설정을 확인하세요.';
     else if (m.type === 'error') info.textContent = HEALTH_ERR[m.code] || HEALTH_ERR.failed;
     else if (m.type === 'summary') {
+      const validNumber = (v) => v === null || (typeof v === 'number' && Number.isFinite(v) && v >= 0);
+      if (!Number.isInteger(m.days) || m.days < 1 || m.days > 7 || !validNumber(m.steps) || (m.steps !== null && !Number.isSafeInteger(m.steps)) || !validNumber(m.distanceMeters) || !Array.isArray(m.runningSessions)) {
+        info.textContent = HEALTH_ERR.failed;
+        return;
+      }
       const fmt = (v, u) => (v === null || v === undefined ? '공유된 기록 없음' : Number(v).toLocaleString('ko-KR') + u);
       const runs = (m.runningSessions || []).length;
-      info.textContent = '최근 ' + m.days + '일 · 걸음 수 ' + fmt(m.steps, '보') + ' · 이동거리 ' + fmt(m.distanceMeters === null ? null : m.distanceMeters / 1000, 'km') + ' · 러닝 기록 ' + runs + '건. 이동거리는 러닝만의 거리가 아니라 전체 활동 합계입니다.';
+      info.textContent = (mock ? '[모의 데이터] ' : '') + '최근 ' + m.days + '일 · 걸음 수 ' + fmt(m.steps, '보') + ' · 이동거리 ' + fmt(m.distanceMeters === null ? null : m.distanceMeters / 1000, 'km') + ' · 러닝 기록 ' + runs + '건. 이동거리는 러닝만의 거리가 아니라 전체 활동 합계입니다.';
     }
   };
-  $('healthConnect').addEventListener('click', () => bridge.requestPermissions());
-  $('healthRead').addEventListener('click', () => { info.textContent = '읽는 중…'; bridge.readRecent(7); });
+  const invoke = (action) => {
+    try { action(); } catch { info.textContent = HEALTH_ERR.failed; }
+  };
+  $('healthConnect').addEventListener('click', () => invoke(() => bridge.requestPermissions()));
+  $('healthRead').addEventListener('click', () => { info.textContent = '읽는 중…'; invoke(() => bridge.readRecent(7)); });
 }
 
 // ---- 러닝 날씨(해운대 구역별 판정) ----
@@ -351,7 +369,7 @@ async function onGpxPicked() {
   const info = $('gpxInfo');
   if (!file) return;
   info.textContent = '지도를 불러오는 중…';
-  await mapReady;
+  if (!await mapReady) { info.textContent = '지도를 불러오지 못해 경로를 표시할 수 없습니다. 새로고침 후 다시 시도하세요.'; return; }
   if (file.size > GPX_MAX_BYTES) { info.textContent = '파일이 너무 큽니다(최대 10MB).'; return; }
   info.textContent = '분석 중…';
   try {
@@ -369,7 +387,10 @@ async function onGpxPicked() {
 }
 
 $('gpxFile').addEventListener('change', onGpxPicked);
-$('gpxClear').addEventListener('click', () => mapReady.then(clearRun));
+$('gpxClear').addEventListener('click', () => mapReady.then((ready) => {
+  if (ready) clearRun();
+  else { $('gpxFile').value = ''; $('gpxInfo').textContent = '기록을 지웠습니다.'; }
+}));
 
 // ---- 선택한 코스 기준 상세: 경사 10%↑ 구간과 신호제어기·횡단보도 ----
 let contextPromise;
@@ -389,7 +410,7 @@ function pointToLineM(p, lines) {
   }
   return best;
 }
-async function showCourseDetail(fc, course) {
+async function showCourseDetail(fc, selection) {
   const box = $('detail');
   const lines = fc.features.filter((f) => f.properties.layer === 'course' && f.properties.highway !== 'gap_bridge' && f.geometry.type === 'LineString').map((f) => f.geometry.coordinates);
   const map = window.map;
@@ -398,6 +419,7 @@ async function showCourseDetail(fc, course) {
   if (!lines.length) return;
   let ctx;
   try { ctx = await loadContext(); } catch { return; }
+  if (selection !== courseSelection) return;
   const slope = [];
   for (const s of ctx.slope) {
     const mid = [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2];
@@ -439,12 +461,15 @@ async function showCourseDetail(fc, course) {
 const ISSUE_LABEL_TXT = { roundabout_loop: '회전교차로 고리', gap: '끊김', crossing_without_node: '교차(노드 없음)', t_without_node: 'T자(노드 없음)', overlap: '겹침' };
 const STATUS_LABEL_TXT = { arc_replaced: '지나가는 호만 표시', bridged: '점선 연결선으로 이음', flagged: '표시만(자동 수정 안 함)' };
 
+let courseSelection = 0;
 async function selectCourse(c, button) {
+  const selection = ++courseSelection;
   for (const b of $('list').children) b.setAttribute('aria-pressed', String(b === button));
   const info = $('info');
   info.textContent = '불러오는 중…';
   try {
     const fc = await getJson('/api/courses/' + encodeURIComponent(c.code) + '/geojson');
+    if (selection !== courseSelection) return;
     const map = window.map;
     map.getSource('course').setData(fc);
     const bounds = new maplibregl.LngLatBounds();
@@ -452,13 +477,17 @@ async function selectCourse(c, button) {
       const coords = f.geometry.type === 'LineString' ? f.geometry.coordinates : [f.geometry.coordinates];
       for (const p of coords) bounds.extend(p);
     }
-    showCourseDetail(fc, c);
+    showCourseDetail(fc, selection);
     if (window.innerWidth <= 600) $('coursebox').open = false; // 좁은 화면에서는 목록을 접어 지도를 보여 준다
     if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 60, maxZoom: 17 });
     const osm = c.crossings.filter((x) => x.source === 'osm').map((x) => (OSM_KIND_LABEL[x.kind] || x.kind) + ' ' + x.count).join(', ');
     info.textContent = '공공 데이터의 신호 횡단보도 ' + c.unique_crossings + '곳(' + c.buffer_m + 'm 이내, 12m 이내는 한 곳으로 합산)'
       + (osm ? ' · OSM 횡단 참고: ' + osm : '') + '. ' + (c.note || '');
   } catch (err) {
-    info.textContent = '코스를 불러오지 못했습니다.';
+    if (selection === courseSelection) info.textContent = '코스를 불러오지 못했습니다.';
   }
 }
+
+// 지도 서비스 장애와 무관하게 독립 기능을 사용할 수 있다.
+loadWeather();
+initHealthBridge();

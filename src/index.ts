@@ -22,7 +22,14 @@ export default {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "GET, HEAD" } });
       }
-      const response = await handleCourseApi(url, env);
+      let response: Response | null;
+      try {
+        response = await handleCourseApi(url, env);
+      } catch {
+        // D1 오류·손상된 저장값의 내부 내용을 노출하지 않고 일정한 JSON 오류로 돌려준다.
+        const failure = Response.json({ error: "Data service unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+        return request.method === "HEAD" ? new Response(null, { status: failure.status, headers: failure.headers }) : failure;
+      }
       if (response) return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
     }
     if (path === "/api/weather") {
