@@ -130,14 +130,14 @@ export function processCells(cells, boundaries) {
 export function chunkVersion(chunks) {
   return sha256(chunks.map((c) => `${c.cell}:${c.sha256}`).join("\n"));
 }
-export function buildManifest({ chunkBodies, stat, coverage, inputsSha256, now = new Date() }) {
+export function buildManifest({ chunkBodies, stat, coverage, inputsSha256, source = "OpenStreetMap contributors (ODbL), Overpass API", now = new Date() }) {
   const chunks = [...chunkBodies.entries()].sort().map(([cell, body]) => ({ cell, trails: JSON.parse(body).trails.length, bytes: Buffer.byteLength(body), sha256: sha256(body) }));
   return {
     generator: GENERATOR, version: chunkVersion(chunks), generatedAt: now.toISOString(), cellSizeDeg: STEP,
     partial: coverage.missing.length + coverage.invalid.length > 0,
     coverage: { expected: coverage.expected, present: coverage.present, missing: coverage.missing, invalid: coverage.invalid, ratio: +(coverage.present / coverage.expected).toFixed(4) },
     inputsSha256,
-    source: "OpenStreetMap contributors (ODbL), Overpass API", attribution: "© OpenStreetMap contributors",
+    source, attribution: "© OpenStreetMap contributors",
     filter: "highway=path|footway|pedestrian|steps|track|bridleway, footway≠sidewalk|crossing|traffic_island, access≠private|no. 부산·울산·경남 행정경계(admin_level=4) 안만 포함",
     processing: { simplifyToleranceM: TOL_M, minLengthM: MIN_LEN_M, chunkRule: "선 중간 꼭짓점이 속한 0.1° 칸" },
     stats: { ...stat, lengthKm: Math.round(stat.lengthM / 1000), cellsFetched: coverage.present },
@@ -250,7 +250,7 @@ export function parseCliArgs(argv, { flags = [], values = [] }) {
 // ---- 빌드 본체 ----
 // opts: { cellsDir, outDir, workDir, boundariesPath, allowPartial, dryRun, limits, now }
 export async function runBuild(opts) {
-  const { cellsDir, outDir, workDir, boundariesPath, allowPartial = false, dryRun = false, limits = LIMITS, now = new Date(), ops = {} } = opts;
+  const { cellsDir, outDir, workDir, boundariesPath, allowPartial = false, dryRun = false, limits = LIMITS, now = new Date(), ops = {}, source } = opts;
   const mv = ops.rename ?? rename, check = ops.check ?? checkOutput; // 시험에서 실패를 주입하기 위한 최소 훅
   let keepRunDir = false;
   const rel = path.relative(path.resolve(outDir), path.resolve(workDir));
@@ -269,7 +269,7 @@ export async function runBuild(opts) {
     const { chunks, stat } = processCells(present, boundaries);
     if (!stat.kept) throw new BuildError("empty", "남은 산책로가 0개입니다. 입력이나 경계를 확인하세요");
     const bodies = new Map([...chunks.entries()].map(([k, items]) => [k, JSON.stringify({ cell: k, trails: items })]));
-    const manifest = buildManifest({ chunkBodies: bodies, stat, coverage, inputsSha256, now });
+    const manifest = buildManifest({ chunkBodies: bodies, stat, coverage, inputsSha256, source, now });
 
     const staging = path.join(runDir, "staging");
     await mkdir(staging, { recursive: true });

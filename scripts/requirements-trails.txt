@@ -1,0 +1,2 @@
+# Optional PBF conversion dependency; verified with Python 3.12.
+osmium==4.3.2

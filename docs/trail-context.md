@@ -5,7 +5,8 @@
 ## 1. 부울경 산책로·산길 벡터 (정적 에셋)
 
 - 원천: OpenStreetMap(ODbL) `highway=path|footway|pedestrian|steps|track|bridleway`, `footway≠sidewalk|crossing|traffic_island`, `access≠private|no`.
-- 처리: `node scripts/fetch-trails.mjs`(0.1° 칸 단위 수집, 이어받기) → `node scripts/fetch-boundaries.mjs`(부산·울산·경남 경계) → `node scripts/build-trails.mjs`(경계로 자르기·중복 제거·4m 단순화·20m 미만 제거).
+- 처리: Overpass 셀 수집(`scripts/fetch-trails.mjs`) 또는 PBF 변환(`scripts/pbf-trail-cells.py`) → 부산·울산·경남 경계 기준 대표점 분류·중복 제거·4m 단순화·20m 미만 제거(`scripts/build-trails.mjs`). 행정경계에서 선을 정확히 절단하는 방식은 아닙니다.
+- 배포 완료: 199/199셀, 길 구간 53,451개, 벡터 조각 176개. 출처·버전·재현 명령·운영 검증은 [산책로 벡터 배포 기록](trail-vector-release.md)을 확인하세요.
 - 결과: `public/data/trails/<위도>_<경도>.json`(0.1° 조각)과 `index.json`(수집 시각·필터·통계·한계). Worker 정적 에셋으로 배포되어 Cloudflare 엣지에서 제공됩니다. D1에는 쓰지 않습니다(무료 일일 쓰기 한도 때문).
 - 한계: OSM에 입력된 길만 포함하며 현실의 모든 산책로를 보증하지 않습니다. 이름 없는 길이 대부분이고 종류는 태그 기반 대략값입니다. 수집에 실패한 칸은 누락될 수 있어 `index.json`의 `cellsFetched`와 로그를 확인하세요.
 - "벡터화"는 지도용 선형(벡터) 데이터로 해석했습니다. AI 임베딩(Cloudflare Vectorize)과는 무관합니다.
