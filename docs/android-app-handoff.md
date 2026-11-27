@@ -10,7 +10,7 @@
 ## 2. 현재 시스템
 | 구성 | 위치 | 비고 |
 |---|---|---|
-| 지도 웹 | `public/map/index.html` (MapLibre, OpenFreeMap 타일) | 패널·레이어·GPX 분석·날씨·헬스 브리지 구역 |
+| 지도 웹 | `public/map/`의 `index.html`, `app.js`, `styles.css`, `theme.js` | 패널·레이어·GPX 분석·날씨·헬스 브리지 구역. 분리 구조는 [프론트 가이드](frontend-design-guide.md) 참고 |
 | API | `src/*.ts` (Cloudflare Worker) | 계약: [openapi.yaml](openapi.yaml), 실제 응답: [samples/](samples/) |
 | 정적 데이터 | `public/data/` | `haeundae/trail-context.json`(해운대 산책로 500m 이내 신호·횡단·경사), `trails/`(부울경 산책로 벡터, 수집 중) |
 | DB | Cloudflare D1 `dongnam-running` | **앱이 직접 접근하지 않는다**(Worker API만 사용). 무료 쓰기 한도가 있음 |
@@ -39,8 +39,8 @@ Health Connect `androidx.health.connect:connect-client:1.1.0`, AGP 8.11.0, Kotli
 
 ## 6. 삼성헬스 연동의 사실과 한계
 - 경로: 삼성헬스 → Health Connect → 앱. 웹이나 Worker가 삼성헬스에 직접 접근할 수는 없다.
-- 현재 읽는 것: 최근 1~7일 걸음 수, 총 이동거리, 러닝/트레드밀 세션(시작·종료). **GPS 경로는 읽지 않는다.** 삼성헬스가 경로를 Health Connect에 기록하는지 확인하지 못했다(커뮤니티 글은 "안 된다"는 취지, 공식 확인 없음). 경로가 필요하면 GPX 내보내기(삼성헬스 → 운동 기록 → 더보기 → 경로 저장) + 웹의 GPX 불러오기를 쓴다.
-- 대안: Samsung Health Data SDK. 개발자 모드에서는 읽기가 가능하다고 안내되나, **배포하려면 삼성 파트너 승인과 패키지명·서명 SHA-256 등록이 필요**하고 경로 읽기 지원은 공식 확인하지 못했다.
+- 현재 읽는 것: 최근 1~7일 걸음 수, 총 이동거리, 러닝/트레드밀 세션(시작·종료). **GPS 경로는 읽지 않는다.** 삼성헬스가 경로를 Health Connect에 기록하는지는 확인하지 못했다. 현재 경로 분석은 사용자가 제공하는 GPX 파일을 웹에서 불러오는 방식이다.
+- 현재 구현은 Health Connect만 사용한다. Samsung Health Data SDK는 도입하지 않았으며, 해당 SDK의 심사·배포·경로 지원 조건은 별도로 확인해야 한다.
 - Android 14+는 Health Connect가 시스템에 포함, 9~13은 별도 앱 설치 필요 → 네이티브 `sdkStatus()`를 웹 어댑터 `status()`로 매핑해 분기.
 
 ## 7. 출시 전 사용자가 정해야 할 것 / 미해결
@@ -83,3 +83,9 @@ Health Connect `androidx.health.connect:connect-client:1.1.0`, AGP 8.11.0, Kotli
 - 수정한 결함: OpenAPI의 쉼표 포함 설명이 YAML 객체로 잘못 해석되던 형식 오류, 안전하지 않은 Android 브리지 예제, 회전교차로를 호로 줄인 뒤 연결선이 30m를 초과할 수 있던 위상 처리 오류.
 - 확인: 타입 검사, Node 테스트 18개, Worker 배포 dry-run, 지도 inline JavaScript 문법 검사, OpenAPI 3.0 명세 검증 통과. 실제 Android 앱 빌드·기기 실행·Play 출시는 미검증입니다.
 - 생성 데이터 `public/data/haeundae/trail-issues.json`, DB 비교 결과·스냅샷·시드·원시 수집 파일은 이번 커밋 대상으로 삼지 않습니다. `docs/samples/`는 공개 API에서 줄인 계약 예시이며 건강 기록이나 DB 전체 덤프가 아닙니다.
+
+## 12. 재확인 결과 (2026-11-27, 독립 검토)
+- `android/health-connect`: Health Connect 1.1.0 소스 jar와 사용한 API 시그니처를 대조해 불일치 없음. 결과 없음은 null로 유지, 페이징·읽기 전 권한 재확인 정상. 단위 테스트는 `ReadWindow`만 있고 `SamsungHealthReader`는 없음.
+- 불확실: 삼성헬스 `DataOrigin` 패키지 상수(`com.sec.android.app.shealth`)는 실기기에서 확인하지 못함. 출처 필터 때문에 다른 앱(워치 전용 앱 등)의 기록은 빠짐.
+- 미구현: 호스트 앱, 권한 사유 Activity·alias, 네이티브 브리지 직렬화, Play 선언, GPS 경로, Samsung Health Data SDK 경로. 앱 빌드·실기기 시험은 한 번도 하지 못함(SDK 없음).
+- 공식 확인(URL): [삼성헬스 Health Connect 동기화(6.22.5~)](https://developer.samsung.com/health/health-connect-faq.html), [Health Connect 시작하기·권한 사유 Activity](https://developer.android.com/health-and-fitness/health-connect/get-started), [Play 선언](https://developer.android.com/health-and-fitness/health-connect/publish), [삼성 Data SDK 절차](https://developer.samsung.com/health/data/process.html).

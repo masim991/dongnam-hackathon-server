@@ -1,0 +1,89 @@
+/* 지도 화면 스타일. 디자인을 바꿀 때는 ① 아래 :root 토큰 ② 클래스 규칙 순서로 고친다(로직은 app.js, 지도 레이어 색은 theme.js).
+   JS가 쓰는 id(#map, #list 등)는 바꾸지 말고, 모양은 클래스로만 조정한다. 설명서: docs/frontend-design-guide.md */
+:root {
+  /* 색 */
+  --surface: #ffffff;
+  --text: #1d2939;
+  --text-muted: #475467;
+  --border: #d0d5dd;
+  --border-strong: #98a2b3;
+  --accent: #1849a9;
+  --accent-soft: #e8f0fe;
+  --ok: #067647;
+  --warn: #b54708;
+  --bad: #b42318;
+  /* 모양 */
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+  --focus-ring: 3px solid var(--accent);
+  /* 글자·간격 */
+  --font: system-ui, sans-serif;
+  --fs-base: 14px;
+  --fs-small: 12px;
+  --fs-tiny: 11px;
+  --fs-title: 15px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  /* 패널 크기 */
+  --panel-width: 320px;
+  --panel-gap: 8px;
+}
+
+/* 어두운 화면 시험용: <html data-theme="dark"> 로 켠다(디자인 확정 전 예시 값) */
+:root[data-theme="dark"] {
+  --surface: #101828; --text: #f2f4f7; --text-muted: #d0d5dd; --border: #475467; --border-strong: #98a2b3; --accent: #84adff; --accent-soft: #1d2939;
+}
+
+html, body, #map { margin: 0; height: 100%; }
+
+/* ---- 패널(왼쪽 위 카드, 좁은 화면에서는 아래 시트) ---- */
+.panel {
+  position: absolute; top: var(--panel-gap); left: var(--panel-gap); z-index: 2; box-sizing: border-box;
+  width: min(var(--panel-width), calc(100% - 2 * var(--panel-gap))); max-height: calc(100% - 2 * var(--panel-gap)); overflow: auto;
+  background: var(--surface); color: var(--text); border-radius: var(--radius); padding: 10px var(--space-3);
+  font: var(--fs-base) / 1.45 var(--font); box-shadow: var(--shadow);
+}
+/* 좁은 화면: 아래 시트. 오른쪽 지도 출처(i) 버튼을 가리지 않도록 오른쪽을 비운다 */
+@media (max-width: 600px) { .panel { top: auto; bottom: var(--panel-gap); max-height: 46%; width: calc(100% - 2 * var(--panel-gap) - 44px); } }
+
+.section { margin: var(--space-2) 0 0; border-top: 1px solid var(--border); padding-top: 6px; }
+.section > summary, .panel summary { font-weight: 700; font-size: var(--fs-title); cursor: pointer; padding: 2px 0; }
+.section > summary { font-size: var(--fs-base); }
+.section p, .section label { font-size: var(--fs-small); margin: 6px 0; }
+.panel summary:focus-visible, .btn:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
+
+/* ---- 버튼 ---- */
+.btn {
+  display: block; width: 100%; text-align: left; margin: var(--space-1) 0; padding: var(--space-2);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: inherit; font: inherit; cursor: pointer;
+}
+.btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.btn-inline { display: inline-block; width: auto; margin: var(--space-1) 6px 0 0; }
+.field-file { width: 100%; font: inherit; margin: var(--space-1) 0; }
+
+/* ---- 본문 조각 ---- */
+.info { margin: var(--space-2) 0 0; font-size: 13px; }
+.note { margin: var(--space-2) 0 0; font-size: var(--fs-tiny); color: var(--text-muted); }
+.detail { margin: var(--space-2) 0 0; font-size: var(--fs-small); }
+.detail h2 { font-size: 13px; margin: var(--space-2) 0 2px; }
+.detail ul { margin: 2px 0 0; padding-left: 16px; }
+.layer-option { display: block; font-size: var(--fs-small); margin: 5px 0; }
+
+/* ---- 날씨 목록 ---- */
+.wx-summary { font-weight: 700; margin: 6px 0 2px; font-size: 13px; }
+.wx-list { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--fs-small); }
+.wx-list li { margin: var(--space-1) 0; }
+.v-good { color: var(--ok); } .v-fair { color: var(--warn); } .v-bad { color: var(--bad); } .v-unknown { color: var(--text-muted); }
+
+/* ---- 범례: 색은 theme.js 가 --c-* 변수로 넣어 준다 ---- */
+.legend { margin: var(--space-2) 0 0; padding: 0; list-style: none; font-size: var(--fs-small); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; box-sizing: border-box; background: var(--sw, #999); }
+.sw-crosswalk { --sw: var(--c-crosswalk); }
+.sw-controller { --sw: var(--c-controller); }
+.sw-osm-signal { --sw: var(--c-osmSignal); }
+.sw-osm-other { --sw: var(--c-osmOther); }
+.sw-bridge { --sw: var(--c-bridge); }
+.sw-issue { --sw: var(--c-issueFill); border: 2px solid var(--c-issueStroke); }
+.sw-entrance { --sw: var(--c-white); border: 2px solid var(--c-ink); }

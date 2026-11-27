@@ -48,10 +48,10 @@ export function rate(o: Observation): Rating {
     else if (t < 5) pen(t >= 0 ? (5 - t) * 3 : 15 + (0 - t) * 5, t < 0 ? `춥습니다(체감 ${t.toFixed(0)}°C)` : `쌀쌀합니다(체감 ${t.toFixed(0)}°C)`);
     if (t >= 33 || t <= -10) hardBad = true;
   }
-  if (o.humidity !== null && o.humidity > 70) pen(clamp((o.humidity - 70) * 0.5, 0, 15), `습합니다(습도 ${o.humidity.toFixed(0)}%)`);
+  if (o.humidity !== null && o.humidity > 70) pen(clamp((o.humidity - 70) * 0.5, 0, 15), (o.humidity > 85 ? `습합니다(습도 ${o.humidity.toFixed(0)}%)` : `습도가 높은 편입니다(${o.humidity.toFixed(0)}%)`));
   if (o.windSpeed !== null) {
     const v = o.windSpeed;
-    if (v > 4) pen(v <= 8 ? (v - 4) * 5 : 20 + (v - 8) * 8, `바람이 셉니다(${v.toFixed(1)}m/s)`);
+    if (v > 4) pen(v <= 8 ? (v - 4) * 5 : 20 + (v - 8) * 8, (v >= 7 ? `바람이 셉니다(${v.toFixed(1)}m/s)` : `바람이 약간 있습니다(${v.toFixed(1)}m/s)`));
     if (v >= 12) hardBad = true;
   }
   if (o.windGust !== null && o.windGust > 12) pen(10, `돌풍 ${o.windGust.toFixed(0)}m/s`);

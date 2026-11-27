@@ -1,6 +1,6 @@
 # 웹 ↔ 안드로이드 앱 브리지 규약 (삼성헬스 / Health Connect)
 
-웹 지도(`/map/`)는 이미 이 규약을 구현해 두었습니다(`public/map/index.html`의 `initHealthBridge`). **앱(WebView 호스트)은 아래 객체와 콜백만 구현하면 됩니다.** 웹 화면은 `window.AndroidHealth`가 있을 때만 "삼성헬스 연동" 구역을 보여 줍니다.
+웹 지도(`/map/`)는 이미 이 규약을 구현해 두었습니다(`public/map/app.js`의 `initHealthBridge`·`installMockHealth`). **앱(WebView 호스트)은 아래 객체와 콜백만 구현하면 됩니다.** 웹 화면은 `window.AndroidHealth`가 있을 때만 "삼성헬스 연동" 구역을 보여 줍니다.
 
 ## 앱이 주입할 객체: `window.AndroidHealth` (웹 어댑터)
 
@@ -48,6 +48,11 @@
 실제 구현에는 앱의 Activity·수명주기·WebView 설정과 함께 빌드 및 기기 검증이 필요합니다. 문서의 계약은 실행 가능한 네이티브 브리지 구현이 아닙니다.
 
 근거: [Android WebView 네이티브 브리지 보안](https://developer.android.com/privacy-and-security/risks/insecure-webview-native-bridges), [WebViewCompat 메시지 리스너](https://developer.android.com/reference/androidx/webkit/WebViewCompat#addWebMessageListener(android.webkit.WebView,java.lang.String,java.util.Set,androidx.webkit.WebViewCompat.WebMessageListener)).
+
+## 웹의 동작 보강
+
+- 웹은 `status()`가 `"available"`이 아니면 두 버튼(권한 요청·불러오기)을 비활성화하고 상태 문구만 보여 줍니다. 네이티브에서도 매 요청마다 지원 상태와 권한을 검증해야 합니다.
+- 요약 메시지의 `days`는 앱이 **검증된 실제 조회 일수**로 채워 보내야 합니다(웹은 그대로 표시).
 
 ## 화면 시험 (기기 없이)
 브라우저에서 `https://dongnam-hackathon.magabus.workers.dev/map/?mockHealth=1` 을 열면 가짜 브리지가 주입되어 같은 화면과 흐름을 시험할 수 있습니다(실제 건강 데이터 아님).
