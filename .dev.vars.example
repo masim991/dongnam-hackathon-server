@@ -1,0 +1,2 @@
+# Local-only Worker secrets. Copy to .dev.vars when needed.
+# Never put production credentials in this example or in wrangler.jsonc.
