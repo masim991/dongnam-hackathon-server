@@ -15,9 +15,9 @@
 ## 사실 (직접 확인)
 | 항목 | 결과 |
 |---|---|
-| 대상 계정 | `Magabus@naver.com's Account`, ID `dfe9c40978c7cc88bae59830f95dd3cc` |
+| 대상 계정 | 사용자 Cloudflare 계정, ID `dfe9c40978c7cc88bae59830f95dd3cc` |
 | CLI(Wrangler) 계정 | 위 계정과 일치 (`wrangler whoami`) |
-| MCP 계정 | 위 계정과 일치. MCP 인증 사용자 `magabus@naver.com`, 접근 가능 계정은 1개 (`GET /accounts`) |
+| MCP 계정 | 위 계정과 일치. MCP 인증 사용자와 일치, 접근 가능 계정은 1개 (`GET /accounts`) |
 | workers.dev 서브도메인 | `magabus` (이미 등록됨, 변경하지 않음) |
 | 커스텀 도메인(zone) 조회 | 성공. 계정에 zone 0개 |
 | Worker 목록 | `dongnam-hackathon` 1개 (수정 2026-11-27 02:52 UTC). 이 Worker의 workers.dev 활성화됨 |
@@ -50,3 +50,21 @@
 ## 추가 승인 필요 여부
 - 현재 기본 환경에는 필요 없음.
 - 커스텀 도메인 연결, DB·스토리지·인증 추가 시 별도 승인 필요.
+
+## 추가: 건널목·신호등 데이터 저장 (2026-11-27)
+- 계정 `dfe9c409…`에 D1 `dongnam-running`을 새로 만들고 스키마·시드를 적재했습니다(원격 조회로 행 수 확인: 횡단보도 3,812, 코스 5, 코스 구성 경로 62, 코스↔횡단보도 42).
+- 변경 파일: `wrangler.jsonc`(D1 바인딩 추가), `.gitignore`(`db/generated/`), `db/schema.sql`, `scripts/build-haeundae-courses.mjs`, `data/raw/*`, README.md, CLAUDE.md.
+- Worker는 재배포하지 않았습니다. 배포된 Worker에는 아직 이 바인딩이 없습니다.
+- 기존 `hackathon-db`(D1)와 `CACHE`(KV)는 다른 프로젝트 리소스라 변경하지 않았습니다.
+
+## 추가: 지도·API 배포 (2026-11-27)
+- Worker `dongnam-hackathon`을 재배포했습니다(버전 `9fec058b…`). D1 바인딩 `DB`(dongnam-running)가 연결되었고 `/api/courses`, `/api/courses/{코드}/geojson`, `/api/crosswalks`가 공개 HTTPS에서 동작합니다.
+- 검증: 200 응답(health·courses·geojson·bbox), 잘못된 코드 400, 없는 코스 404, 너무 넓은 bbox 400, `POST` 405(`Allow: GET, HEAD`), `HEAD` 200, `/map/` 200. 타입 검사와 테스트 7개 통과.
+- 변경 파일: `src/index.ts`, `src/courses.ts`(신규), `tsconfig.json`(`allowImportingTsExtensions`), `test/worker.test.ts`(테스트 4개 추가), `public/map/index.html`(코스 패널·레이어 추가), `db/schema.sql`, `scripts/*`.
+- 미확인: D1 무료 한도, 실제 모바일 단말에서의 화면. 커밋·푸시는 하지 않았습니다.
+
+## 추가: D1 안정화·동백섬·달맞이길 (2026-11-27)
+- 경사 표(외부 적재)와 신호등 표를 영역별로 등록·분리하고 점검 스크립트를 추가했습니다(`db:check` 11/11 통과, 경사 표 12,677행 유지).
+- 동백섬 순환 코스(폐곡선 v1)와 달맞이길 차도 코스를 추가하고 출입구 분석을 D1에 저장했습니다. API·지도를 재배포했습니다(버전 `f29f05c6…`, 코스 9개 응답 확인).
+- 두루누비 비교는 인증키가 없어 실행하지 못했습니다(비교 함수는 자체 시험 통과).
+- 한계: 동백섬은 현장 미검증, 달맞이길 길이는 way 합(겹침 포함), OSM 무신호 횡단은 기여자 입력값.

@@ -5,5 +5,8 @@
   "compatibility_date": "2026-11-27",
   "workers_dev": true,
   "assets": { "directory": "./public" },
-  "send_metrics": false
+  "send_metrics": false,
+  "d1_databases": [
+    { "binding": "DB", "database_name": "dongnam-running", "database_id": "1d725a97-b44e-4b81-b921-0d638bb9d813" }
+  ]
 }

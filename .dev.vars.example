@@ -1,2 +1,4 @@
 # Local-only Worker secrets. Copy to .dev.vars when needed.
 # Never put production credentials in this example or in wrangler.jsonc.
+# 두루누비 비교(scripts/durunubi-compare.mjs)용 공공데이터포털 인증키. 값은 .dev.vars 에만 넣는다.
+DURUNUBI_SERVICE_KEY=

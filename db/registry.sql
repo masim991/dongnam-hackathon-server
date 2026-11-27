@@ -1,0 +1,14 @@
+-- 표 소유·영역 등록부. 영역(domain): common / signal(횡단보도·신호등·코스) / slope(경사, 외부 적재)
+-- 규칙: 시드·초기화는 owner='this-repo' 인 표만 지운다. 다른 영역의 표는 읽기 전용으로 취급한다.
+INSERT OR REPLACE INTO data_domain (table_name, domain, owner, source_id, note) VALUES
+  ('src_dataset', 'common', 'this-repo', NULL, '출처 기록. 시드는 자기 소유 행(id)만 지움'),
+  ('data_domain', 'common', 'this-repo', NULL, '이 등록부'),
+  ('busan_crosswalk', 'signal', 'this-repo', 'busan-crosswalk-20250423', '부산 신호등 있는 횡단보도 위치(공공)'),
+  ('osm_crossing', 'signal', 'this-repo', 'osm-haeundae-crossings', 'OSM 횡단·신호기 노드(참고)'),
+  ('course', 'signal', 'this-repo', NULL, '코스 메타·집계'),
+  ('course_way', 'signal', 'this-repo', NULL, '코스 경로 선(GeoJSON)'),
+  ('course_crosswalk', 'signal', 'this-repo', NULL, '코스↔공공 횡단보도 매칭'),
+  ('course_osm_crossing', 'signal', 'this-repo', NULL, '코스↔OSM 횡단 노드 매칭'),
+  ('course_crossing_summary', 'signal', 'this-repo', NULL, '코스별 횡단 요약'),
+  ('course_entrance', 'signal', 'this-repo', NULL, '코스 출입구와 가장 가까운 횡단까지 거리'),
+  ('course_reference_compare', 'signal', 'this-repo', NULL, '외부 기준 경로(두루누비 등)와의 비교 결과');

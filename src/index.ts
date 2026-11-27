@@ -1,6 +1,9 @@
+import { handleCourseApi, type Env } from "./courses.ts";
+
 export default {
-  async fetch(request: Request): Promise<Response> {
-    const path = new URL(request.url).pathname;
+  async fetch(request: Request, env: Env = {}): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
     if (path === "/" || path === "/api/health") {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return Response.json({ error: "Method not allowed" }, {
@@ -13,6 +16,13 @@ export default {
       return request.method === "HEAD"
         ? new Response(null, { headers: response.headers })
         : response;
+    }
+    if (path.startsWith("/api/courses") || path === "/api/crosswalks") {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "GET, HEAD" } });
+      }
+      const response = await handleCourseApi(url, env);
+      if (response) return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
     }
     return Response.json({ error: "Not found" }, { status: 404 });
   },
