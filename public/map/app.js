@@ -17,6 +17,8 @@ function koreanOnly(style) {
 
 const slopeColor = ['step', ['get', 'grade'], THEME.slopeLow, 15, THEME.slopeModerate, 20, THEME.slopeMid, 40, THEME.slopeHigh];
 const EMPTY = { type: 'FeatureCollection', features: [] };
+// 두 차도 참고 코스의 선 모양만 복원한다. 보행 미검증 데이터·분석 제한은 유지한다.
+const solidRoadReference = ['in', ['get', 'code'], ['literal', ['HD-BEACHROAD', 'HD-DALMAJI']]];
 let resolveMapReady;
 const mapReady = new Promise((r) => { resolveMapReady = r; }); // 지도 준비 전에 파일을 골라도 준비되면 이어서 처리한다
 const $ = (id) => document.getElementById(id);
@@ -67,9 +69,9 @@ function initCourses() {
   map.addSource('course', { type: 'geojson', data: EMPTY });
   map.addLayer({ id: 'xwalk', type: 'circle', source: 'xwalk', minzoom: 15,
     paint: { 'circle-radius': 4, 'circle-color': THEME.crosswalk, 'circle-opacity': 0.55, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
-  map.addLayer({ id: 'course-line', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['!=', ['get', 'highway'], 'gap_bridge'], ['!=', ['get', 'highway'], 'closed_reference'], ['!=', ['get', 'highway'], 'detour_candidate'], ['!=', ['get', 'roadAccessUnverified'], true]],
+  map.addLayer({ id: 'course-line', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['!=', ['get', 'highway'], 'gap_bridge'], ['!=', ['get', 'highway'], 'closed_reference'], ['!=', ['get', 'highway'], 'detour_candidate'], ['any', solidRoadReference, ['!=', ['get', 'roadAccessUnverified'], true]]],
     layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': THEME.course, 'line-width': 4 } }, labelLayer);
-  map.addLayer({ id: 'course-unverified', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['==', ['get', 'roadAccessUnverified'], true]],
+  map.addLayer({ id: 'course-unverified', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['==', ['get', 'roadAccessUnverified'], true], ['!', solidRoadReference]],
     paint: { 'line-color': THEME.bridge, 'line-width': 3.5, 'line-dasharray': [2, 1.5] } }, labelLayer);
   map.on('click', 'course-unverified', (e) => {
     const connector = e.features[0].properties.highway === 'network_connector';
