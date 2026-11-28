@@ -1,4 +1,29 @@
-# 동남권 이노베이션 해커톤
+# 뛰고보자 | 동남권 이노베이션 해커톤
+
+부산·울산·경남에서 달릴 길을 고르고, 운동을 기록하고, 지도에 사진과 한마디를 남길 수 있는 러닝 앱입니다. CV팀은 지도에 쌓인 후기와 위험 제보가 다음 러너의 코스 선택에 도움이 되도록 만들었습니다.
+
+## 팀원 역할
+
+| 팀원 | 담당 |
+| --- | --- |
+| 곽태원 | Cloudflare Workers API 구축, D1 설계·운영, 횡단보도 등 공공데이터 수집 |
+| 고유민 | Android 앱·UX 개발, 기능 통합, 건강 앱 연동·배포 |
+
+[Android 앱 소스](app/) · [앱 구조도와 수정 기록](app/README.md) · [2.3 패치 내역 및 APK](https://yumin-server.duckdns.org/files/)
+
+## 저장소 구성
+
+| 위치 | 내용 |
+| --- | --- |
+| [app](app/) | 실제 Android 앱과 지도 모듈 |
+| [android/health-connect](android/health-connect/) | 앱에서 사용하는 팀 Health Connect 모듈 |
+| [src](src/) · [db](db/) | Cloudflare Workers API와 D1 스키마 |
+| [public/map](public/map/) · [public/data](public/data/) | 웹 지도와 공개 코스 데이터 |
+
+<details>
+<summary>서버·데이터·웹 지도 문서 펼치기</summary>
+
+아래는 앱을 합치기 전 원본 저장소의 README입니다. 당시의 구현 상태와 검증 기록을 담고 있습니다.
 
 부울경 러닝 지도의 Cloudflare Workers API·D1 스키마·웹 지도와 Android 연동 준비 코드를 관리합니다. 목표는 기존 지도 기능을 유지한 Android 앱입니다. 현재 `android/health-connect` 읽기 전용 라이브러리와 웹 브리지 계약까지 준비돼 있으며, 실행 가능한 `android/app` 호스트와 APK는 아직 없습니다.
 
@@ -128,3 +153,11 @@ npm run cf:whoami
 - `GET /api/weather`: 해운대 구역별 러닝 날씨 판정(Open-Meteo). 빈·오래된 응답은 판정 불가로 제외.
 - D1 새 표(`haeundae_trail`, `trail_context_*`)는 기존 적재 완료 상태입니다. 이후에는 `npm run db:apply -- --remote --pending --dry-run`으로 계획부터 확인하고, 새 버전 SQL·SHA256 검사·명시적 적용 절차를 따릅니다([docs/db-growth.md](docs/db-growth.md)).
 - Android·삼성헬스(Health Connect 읽기 전용 모듈)는 Codex가 `android/`, `docs/android-health-connect.md`에서 진행 중입니다.
+
+</details>
+
+## 앱 배포 QR
+
+| 최신 버전 받기 | 버전 선택 |
+| :---: | :---: |
+| [<img src="app/docs/latest-qr.png" width="148" alt="최신 Android APK 다운로드 QR">](https://yumin-server.duckdns.org/files/eudero-gano.apk) | [<img src="app/docs/download-qr.png" width="148" alt="Android APK 버전 선택 QR">](https://yumin-server.duckdns.org/files/) |

@@ -1,0 +1,10 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="14dp" android:background="@drawable/widget_bg">
+    <TextView android:id="@+id/w_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="뛰고보자 · 러닝" android:textColor="@color/brand_accent" android:textSize="12sp" />
+    <TextView android:id="@+id/w_time" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="00:00" android:textColor="#FFFFFF" android:textSize="34sp" android:textStyle="bold" />
+    <TextView android:id="@+id/w_sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="대기 중" android:textColor="#FFFFFF" android:textSize="14sp" />
+</LinearLayout>

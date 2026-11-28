@@ -1,0 +1,72 @@
+[
+ {
+  "id": "p1",
+  "name": "나",
+  "relation": "me",
+  "avatar": "samples/person_1.png",
+  "bio": "CV팀 파이팅!"
+ },
+ {
+  "id": "p2",
+  "name": "민준",
+  "relation": "friend",
+  "avatar": "samples/person_2.png",
+  "bio": "마지막 신호등 지나면 딱 한 곡 더 달려요."
+ },
+ {
+  "id": "p3",
+  "name": "서연",
+  "relation": "friend",
+  "avatar": "samples/person_3.png",
+  "bio": "바다 색이 예쁜 날은 기록보다 사진이 먼저예요."
+ },
+ {
+  "id": "p4",
+  "name": "지호",
+  "relation": "friend",
+  "avatar": "samples/person_4.png",
+  "bio": "첫 1km는 천천히. 그래야 끝에 웃더라고요."
+ },
+ {
+  "id": "p5",
+  "name": "하윤",
+  "relation": "friend",
+  "avatar": "samples/person_5.png",
+  "bio": "바람 센 날엔 돌아오는 길을 먼저 생각해요."
+ },
+ {
+  "id": "p6",
+  "name": "달리는곰",
+  "relation": "other",
+  "avatar": "samples/person_6.png",
+  "bio": "곰처럼 느려도 오늘 정한 데까진 갑니다."
+ },
+ {
+  "id": "p7",
+  "name": "부산갈매기",
+  "relation": "other",
+  "avatar": "samples/person_7.png",
+  "bio": "갈매기 따라가다 또 반환점을 넘겼네."
+ },
+ {
+  "id": "p8",
+  "name": "해운대러너",
+  "relation": "other",
+  "avatar": "samples/person_8.png",
+  "bio": "해운대 모래 털고 집에 가는 게 내 마무리 운동."
+ },
+ {
+  "id": "p9",
+  "name": "새벽조깅",
+  "relation": "other",
+  "avatar": "samples/person_9.png",
+  "bio": "첫차 소리 나기 전에 한 바퀴 돌고 올게요."
+ },
+ {
+  "id": "p10",
+  "name": "광안파도",
+  "relation": "other",
+  "avatar": "samples/person_10.png",
+  "bio": "다리 불빛 켜지면 그때부터가 내 러닝 시간."
+ }
+]

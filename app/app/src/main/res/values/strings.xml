@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">뛰고보자</string>
+    <string name="widget_desc">러닝 경과 시간·페이스·심박수</string>
+</resources>
