@@ -11,7 +11,7 @@
       "buffer_m": 20,
       "matched_points": 0,
       "unique_crossings": 0,
-      "crossings_per_km": 0,
+      "crossings_per_km": 0.0,
       "note": "원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
       "crossings": [
@@ -35,11 +35,11 @@
       "gu": "해운대구",
       "kind": "trail",
       "length_m": 546,
-      "way_count": 4,
+      "way_count": 7,
       "buffer_m": 20,
       "matched_points": 0,
       "unique_crossings": 0,
-      "crossings_per_km": 0,
+      "crossings_per_km": 0.0,
       "note": "원본 OSM 길로 연결 2곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
       "crossings": [
@@ -73,7 +73,7 @@
       "matched_points": 36,
       "unique_crossings": 36,
       "crossings_per_km": 7.8,
-      "note": "원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "note": "보행 코스가 아닌 차도 중심선 참고 자료입니다. 원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
       "crossings": [
         {
@@ -111,12 +111,12 @@
       "gu": "해운대구",
       "kind": "road_proxy",
       "length_m": 6837,
-      "way_count": 20,
+      "way_count": 29,
       "buffer_m": 20,
       "matched_points": 11,
       "unique_crossings": 11,
-      "crossings_per_km": 1.74,
-      "note": "원본 OSM 길로 연결 4곳 복원. 미확인 직선 연결 0곳. 짧은 틈 대신 실제 도로 약 313m 우회를 포함합니다. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "crossings_per_km": 1.61,
+      "note": "보행 코스가 아닌 차도 중심선 참고 자료입니다. 원본 OSM 길로 연결 4곳 복원. 미확인 직선 연결 0곳. 짧은 틈 대신 실제 도로 약 313m 우회를 포함합니다. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
       "crossings": [
         {
@@ -144,30 +144,19 @@
     },
     {
       "code": "HD-DONGBAEK",
-      "name": "동백섬 순환 산책로",
+      "name": "동백공원 순환도로(안내도 대조)",
       "region": "부산",
       "gu": "해운대구",
       "kind": "trail",
-      "length_m": 1802,
+      "length_m": 967,
       "way_count": 1,
       "buffer_m": 20,
-      "matched_points": 0,
-      "unique_crossings": 0,
-      "crossings_per_km": 0,
-      "note": "원본 OSM 길로 연결 1곳 복원. 동백섬 수동 직선 4곳을 원본 길로 교체했습니다. 원래 경유점을 유지하여 일부 왕복이 포함됩니다. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "matched_points": null,
+      "unique_crossings": null,
+      "crossings_per_km": null,
+      "note": "부산시보의 동백공원 순환산책로 안내도와 대조한 OSM 공원 순환도로 전체입니다. 약 1.65km 해안·공원 연결 순환과 구분합니다. 현장 통행과 신호는 별도 확인이 필요합니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
-      "crossings": [
-        {
-          "source": "busan_signal_crosswalk",
-          "kind": "signal",
-          "count": 0
-        },
-        {
-          "source": "osm",
-          "kind": "uncontrolled",
-          "count": 2
-        }
-      ],
+      "crossings": [],
       "geojson": "/data/haeundae/courses/HD-DONGBAEK.geojson"
     },
     {
@@ -177,11 +166,11 @@
       "gu": "해운대구",
       "kind": "trail",
       "length_m": 8734,
-      "way_count": 6,
+      "way_count": 7,
       "buffer_m": 20,
       "matched_points": 0,
       "unique_crossings": 0,
-      "crossings_per_km": 0,
+      "crossings_per_km": 0.0,
       "note": "원본 OSM 길로 연결 1곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
       "crossings": [
@@ -200,30 +189,24 @@
     },
     {
       "code": "HD-MOONTAN",
-      "name": "달맞이 문탠로드",
+      "name": "문탠로드 원점회귀(어울마당·해월정 경유)",
       "region": "부산",
       "gu": "해운대구",
       "kind": "trail",
-      "length_m": 1456,
-      "way_count": 19,
+      "length_m": 2551,
+      "way_count": 26,
       "buffer_m": 20,
-      "matched_points": 0,
-      "unique_crossings": 0,
-      "crossings_per_km": 0,
-      "note": "원본 OSM 길로 연결 1곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "matched_points": null,
+      "unique_crossings": null,
+      "crossings_per_km": null,
+      "note": "들머리→바다전망대 대응지점→어울마당→해월정→들머리로 돌아오는 OSM 전체 연결 경로입니다. 공식 2.2km와 동일 노선으로 확정하지 않았으며 입구·전망대 위치는 추정입니다. 해월정 곁길 왕복을 포함하며 현장 통행·신호는 별도 확인이 필요합니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
-      "crossings": [
-        {
-          "source": "busan_signal_crosswalk",
-          "kind": "signal",
-          "count": 0
-        }
-      ],
+      "crossings": [],
       "geojson": "/data/haeundae/courses/HD-MOONTAN.geojson"
     },
     {
       "code": "HD-SONGJEONG",
-      "name": "송정 해안(송정옛길·동암해안길)",
+      "name": "송정옛길(OSM 보행로)",
       "region": "부산",
       "gu": "해운대구",
       "kind": "trail",
@@ -232,8 +215,8 @@
       "buffer_m": 20,
       "matched_points": 0,
       "unique_crossings": 0,
-      "crossings_per_km": 0,
-      "note": "원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "crossings_per_km": 0.0,
+      "note": "내륙 송정옛길입니다. 송정해변 전체나 동암해안길을 나타내지 않습니다. 원본 OSM 길로 연결 0곳 복원. 미확인 직선 연결 0곳. 기존 경로의 신호 집계를 유지합니다. 도로 보행 가능 여부는 현장 미확인입니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
       "crossings": [
         {
@@ -256,26 +239,38 @@
     },
     {
       "code": "HD-SUYEONG",
-      "name": "수영강 자전거길(해운대 구간)",
+      "name": "수영강 동편 산책로(동천교→민락교)",
       "region": "부산",
       "gu": "해운대구",
       "kind": "riverside",
-      "length_m": 12530,
-      "way_count": 11,
+      "length_m": 7342,
+      "way_count": 1,
       "buffer_m": 20,
-      "matched_points": 4,
-      "unique_crossings": 4,
-      "crossings_per_km": 0.32,
-      "note": "원본 OSM 길로 연결 1곳 복원. 미확인 직선 연결 0곳. 횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 재산출 전입니다. 도로 보행 가능 여부는 현장 미확인입니다.",
+      "matched_points": null,
+      "unique_crossings": null,
+      "crossings_per_km": null,
+      "note": "부산시 갈맷길 8-2 공식 GPX(2024-10-01)의 동천교→민락교 전체 선형입니다. 과거 3개 길 묶음 대신 연속 구간을 표시합니다. 현장 변동·신호는 별도 확인이 필요합니다.",
       "built_at": "2026-11-27T08:46:20.052Z",
-      "crossings": [
-        {
-          "source": "busan_signal_crosswalk",
-          "kind": "signal",
-          "count": 4
-        }
-      ],
-      "geojson": "/data/haeundae/courses/HD-SUYEONG.geojson"
+      "crossings": [],
+      "geojson": "/data/haeundae/courses/HD-SUYEONG.geojson",
+      "sourceUrl": "https://www.busan.go.kr/galmaetgil/tour0802"
+    },
+    {
+      "code": "HD-DONGBAEK-COAST",
+      "name": "동백섬 해안·공원 연결 순환(OSM)",
+      "region": "부산",
+      "gu": "해운대구",
+      "kind": "trail",
+      "length_m": 1649,
+      "way_count": 18,
+      "buffer_m": 20,
+      "matched_points": null,
+      "unique_crossings": null,
+      "crossings_per_km": null,
+      "note": "OSM 원본 해안·공원길을 연결한 단일 순환입니다. 이전 왕복 지선을 제거했습니다. 짧은 공원 순환도로와 다른 경로이며, 현장 통행은 별도 확인이 필요합니다.",
+      "built_at": "2026-11-27T08:46:20.052Z",
+      "crossings": [],
+      "geojson": "/data/haeundae/courses/HD-DONGBAEK-COAST.geojson"
     }
   ]
 }

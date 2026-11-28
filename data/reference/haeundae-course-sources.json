@@ -1,0 +1,848 @@
+{
+  "generatedAt": "2026-11-28T00:27:51.829Z",
+  "scope": "해운대 시범코스 8개(HD-BEACHPROM, -EXT, -BEACHROAD, -DALMAJI, -DONGBAEK, -MOONTAN, -SONGJEONG, -SUYEONG) 공식 근거·길이·경유점·GPX/공간자료 조사. 코드·지도·기존 데이터 수정 없음.",
+  "method": "readStatus read_by_fetch_agent_http200 = web-fetch 에이전트가 페이지를 직접 가져와 본문에서 확인한 것. 검색 요약만 본 것은 searchSummaryOnly_notRelied에 따로 두고 근거로 쓰지 않음. 이 PC에서는 busan.go.kr 갈맷길 사이트가 열리지 않아(DNS) 그 부분은 Codex 조사에 맡김. 사용자 지시로 공개 자전거지도 파일과 두루누비 공개 GPX를 내려받아 확인함(키 발급·호출 없음).",
+  "accessNotes": [
+    "ktriptips.com 페이지는 한국관광공사·TourAPI 출처 표기가 없어 공식 근거로 쓰지 않음(참고용).",
+    "일부 busan.go.kr 페이지는 첫 요청이 ECONNRESET 후 재시도에서 읽힘.",
+    "두루누비 API는 serviceKey가 필요해 호출하지 않았고 키도 입력하지 않음. 공개 다운로드 파일(해운대 자전거지도 JPEG, 두루누비 2-1 GPX)은 내려받아 확인함."
+  ],
+  "searchSummaryOnly_notRelied": [
+    "한국관광공사 대한민국 구석구석 여행기사 달맞이길 두 건(korean.visitkorea.or.kr, cotid c9d5a0f5..., 526e40b0...)",
+    "해운대구청 해운대신문 달맞이길~어울마당 2.5km 언급(검색 요약에서만 확인)",
+    "부산시보 동백섬 산책로 930m 언급(어느 기사인지 확정 못 함)",
+    "수영강 자전거 전용도로 8.85km(출처 페이지 미확인)",
+    "해운대해수욕장 1.46km(위키백과), Komoot 사용자 경로"
+  ],
+  "dataAvailability": {
+    "durunubiOpenApi": {
+      "exists": true,
+      "url": "https://www.data.go.kr/data/15101974/openapi.do",
+      "endpoint": "https://apis.data.go.kr/B551011/Durunubi",
+      "authKey": "serviceKey 필수",
+      "gpx": "284개 코스 GPX 정보 제공이라고 명시(필드명은 페이지에 없음)",
+      "license": "이용허락범위 제한 없음",
+      "haeundaeCoursesIncluded": "갈맷길 2-1(두루누비 상세 페이지와 GPX 링크 확인), 문탠로드·동백섬 등 개별 코스는 확인하지 못함"
+    },
+    "haeundaeBicycleMap": {
+      "exists": true,
+      "page": "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000306009000000",
+      "download": "https://www.haeundae.go.kr/board/download.do?boardId=BBS_0000048&paging=ok&startPage=1&dataSid=3098197&command=update&fileSid=3080449",
+      "downloadedFile": {
+        "path": ".wrangler/scaffold-review/downloads/haeundae-bikemap/haeundae-bikemap.jpg",
+        "bytes": 3833172,
+        "sha256": "b36b116985f0b948ec52d4c0195479fc50b7c968b434b6bba27e5bda831e254b",
+        "format": "JPEG 3000x1444, JFIF/Adobe 마커만 있고 EXIF·GPS·XMP·GeoTIFF 없음",
+        "requestNote": "서버가 브라우저 헤더(User-Agent, Referer)가 없으면 403/400을 돌려줌; /board/download.do 경로만 유효(/tour/download.do는 404)"
+      },
+      "content": "일러스트 자전거지도. 코스 3개: 수영강코스(초보자), 도시투어코스(중급), 동해안코스(고급). 범례: 자전거전용도로, 자전거도로(보행자겸용), 일반도로. '해운대 해변길 자전거 진입 불가', 자전거 대여 지점(부산원동역·재송역·센텀역·벡스코역·동백역·해운대역·센텀시티역·좌수영교). 거리·좌표 없음.",
+      "usableAs": "정성적 참고(자전거 허용 여부, 코스 이름)만 가능. 선형·길이 근거로는 사용 불가"
+    },
+    "gpxForMoontanDongbaekSuyeong": "공식 개별 GPX는 확인하지 못함",
+    "busanOpenDataPortal": "확인하지 못함(조사 범위 밖)",
+    "durunubiPublicGpx": {
+      "exists": true,
+      "course": "갈맷길 2-1",
+      "pageUrl": "https://www.durunubi.kr/4-2-1-1-walk-mobility-view-detail.do?crs_idx=T_CRS_MNG0000000073&brd_div=DNWW",
+      "downloadedFile": {
+        "path": ".wrangler/scaffold-review/downloads/durunubi-2-1/galmaetgil-2-1-durunubi.gpx",
+        "bytes": 27441,
+        "sha256": "67224bc815c6492a5de2e79a204889ec234d42f5447ff6f04fa565778fa358cb",
+        "points": 275,
+        "lengthM": 11864,
+        "creator": "bikeroute.xyz",
+        "filePathDate": "2023/05",
+        "boundsLat": [
+          35.15237,
+          35.18082
+        ],
+        "boundsLon": [
+          129.13058,
+          129.20489
+        ]
+      },
+      "comparisonToBusan2024": "부산시 2-1 GPX(1,156점, 11,586m) 대비 두루누비 점이 선까지 중앙값 5m, 90% 50m, 최대 128m. 서로 다른 단순화 선형이며 하나를 정답으로 보지 않음"
+    }
+  },
+  "crossChecks": {
+    "moontan": "현재 1.46km vs 공식 안내 2.2km 원점회귀: 거리 비교(0.66)일 뿐 포함 비율 아님. 민간 사이트 2.5km는 비공식",
+    "dongbaek": "공식 안내 수치 950m(해안 데크)·1km(공원 순환도로)·공식 GPX 통과 약 1.4~1.6km가 서로 다른 대상일 수 있어 현재 1.8km의 과다 여부를 판정하지 않음",
+    "songjeong": "6조각은 송정옛길(내륙), 동암해안길 근거 없음",
+    "suyeong": "12.5km 3덩어리, 공식 해운대 구간 길이 없음"
+  },
+  "courses": [
+    {
+      "code": "HD-DONGBAEK",
+      "name": "동백섬 순환 산책로",
+      "sources": [
+        {
+          "url": "https://www.visitbusan.net/index.do?menuCd=DOM_000000202004001000&uc_seq=284&lang_cd=ko",
+          "title": "바다와 산, 그리고 부산을 걷다 (부산을 담은 동백해안산책로)",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "동백섬 둘레 해안산책로 약 950m, 전망데크·인어상·출렁다리·등대·누리마루 APEC하우스 순서",
+          "doesNotProve": "'둘레 950m'가 섬 전체 한 바퀴인지, 해안 데크(출렁다리 등)만인지, 왕복인지 증명하지 않음; 공원 순환도로 1km(부산시보 2007)와 같은 대상인지도 확인되지 않음; GPX·게시 날짜 없음"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/specnews/view?bbsNo=6&dataNo=20561&srchThemeNo=9",
+          "title": "해운대 동백섬 (부산시보 기획연재, 2007-08-02)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "1km 순환도로가 동백섬 주 산책로, 청동인어상·누리마루·최치원 유적비 언급",
+          "doesNotProve": "해안 데크 산책로 길이 없음, 2007년 자료라 현재 선형과 다를 수 있음"
+        },
+        {
+          "url": "https://visitbusan.net/index.do?lang_cd=ko&menuCd=DOM_000000202002001000&uc_seq=1399",
+          "title": "기운차게 시작하는 아침, 일출 조깅코스 추천 (여행작가 기고)",
+          "authority": "비짓부산 게시(필자 개인 기고, 공식 측정 아님)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "수영만요트경기장→영화의거리(약 1km)→동백해안산책로(약 1.5km 남짓)→해운대해변산책로→미포, 전체 약 5km 조깅 코스",
+          "doesNotProve": "동백섬 950m 안내와 상충, 측정 근거 없음, 편도/왕복 미표기"
+        },
+        {
+          "url": "https://www.durunubi.kr/4-2-1-1-walk-mobility-view-detail.do?crs_idx=T_CRS_MNG0000000073&brd_div=DNWW",
+          "title": "갈맷길 2-1코스 (두루누비)",
+          "authority": "한국관광공사(두루누비 운영)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "갈맷길 2-1 12.0km 비순환형 약 4시간, 경로표 '문탠로드-(1.4km)-해운대해수욕장-(1.0km)-누리마루 APEC하우스-(3.3km)-민락교', 미포~청사포~송정 4.8km 블루라인, GPX 다운로드 링크 존재",
+          "doesNotProve": "문탠로드·동백섬 단독 코스 길이 아님(구간 거리). 갈맷길 2-1 GPX는 내려받아 확인함(275점, 약 11,864m, 부산시 2024 GPX와 다른 단순화 선형)"
+        },
+        {
+          "url": "https://www.durunubi.kr/download?filePath=/data/koreamobility/file/2023/05/11794524b3394927857bab4204eca27a.gpx&downloadName=갈맷길_2-1코스.gpx&course_id=T_CRS_MNG0000000073",
+          "title": "갈맷길 2-1코스 GPX (두루누비 공개 다운로드)",
+          "authority": "한국관광공사(두루누비 운영)",
+          "readStatus": "downloaded_and_inspected_by_claude",
+          "supports": "한국관광공사 제공 2-1 GPX 275점, 길이 약 11,864m, 부산시 2024-10-01 GPX(1,156점, 11,586m)와 비교용 독립 선형",
+          "doesNotProve": "파일 작성자 표시가 bikeroute.xyz(2023-05 경로)로 부산시 원본과 다른 단순화 선형이며 동백섬·문탠로드 단독 코스가 아님",
+          "localCopy": ".wrangler/scaffold-review/downloads/durunubi-2-1/galmaetgil-2-1-durunubi.gpx (git 무시 폴더)"
+        }
+      ],
+      "officialDistanceM": {
+        "value": null,
+        "status": "multiple_non_equivalent_figures",
+        "figures": [
+          {
+            "m": 950,
+            "what": "동백해안산책로 둘레(비짓부산)",
+            "sameRouteAsOurLine": "not_confirmed"
+          },
+          {
+            "m": 1000,
+            "what": "공원 순환도로(부산시보 2007)",
+            "sameRouteAsOurLine": "not_confirmed"
+          },
+          {
+            "m": 1500,
+            "what": "동백해안산책로 '약 1.5km 남짓'(조깅 기고문, 개인 의견)",
+            "sameRouteAsOurLine": "not_confirmed"
+          },
+          {
+            "m": 1436,
+            "what": "부산시 2024 갈맷길 2-1 GPX가 동백섬 상자 안에서 한 번 지나는 길이(동쪽 진입 후 약 1.4km, 서쪽 구간 171m 별도)",
+            "sameRouteAsOurLine": "not_confirmed",
+            "note": "한 번 통과한 길이이며 한 바퀴 둘레가 아님"
+          },
+          {
+            "m": 1414,
+            "what": "두루누비 2-1 GPX의 같은 상자 안 통과 길이",
+            "sameRouteAsOurLine": "not_confirmed"
+          }
+        ],
+        "note": "해안 데크 950m와 공원 순환도로 1km는 서로 다른 대상일 수 있다. 동일 노선을 겹쳐 확인하기 전에는 이 수치들로 현재 선(1,802m)이 길다·짧다고 판정하지 않는다."
+      },
+      "officialWaypoints": [
+        "동백섬 입구 첫 전망데크",
+        "청동인어상",
+        "출렁다리",
+        "등대·전망대",
+        "누리마루 APEC하우스",
+        "최치원 유적비(동백공원)"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 967,
+        "displayedGeometryMetrics": {
+          "lengthM": 967,
+          "lineFeatures": 1,
+          "points": 32,
+          "components": 1,
+          "branchNodes": 0,
+          "endpoints": 0,
+          "repeatedEdgeOccurrences": 0,
+          "method": "coordinate_adjacency_0.3m_not_access_validation"
+        },
+        "source": "/data/haeundae/courses/HD-DONGBAEK.geojson",
+        "note": "공원 순환도로와 해안·공원 연결 순환을 분리했다. 공원 순환은 원본 OSM 실제 닫힌 도로 부분만 쓰며 진입 왕복 지선을 제외했다."
+      },
+      "findings": [
+        "공원 순환도로와 해안·공원 연결 순환을 분리했다. 공원 순환은 원본 OSM 실제 닫힌 도로 부분만 쓰며 진입 왕복 지선을 제외했다."
+      ],
+      "recommendedAction": "선형 재구성 완료. 출처 날짜를 유지하고 실제 현장 변화·통행 상태와 추정 경유점의 이름을 대조한다.",
+      "lineCoversOfficial": "complete_osm_park_loop_guide_matched_not_surveyed",
+      "lineCoversOfficialNote": "공원 순환도로와 해안·공원 연결 순환을 분리했다. 공원 순환은 원본 OSM 실제 닫힌 도로 부분만 쓰며 진입 왕복 지선을 제외했다.",
+      "uiEvidenceLinks": [
+        "https://www.visitbusan.net/index.do?menuCd=DOM_000000202004001000&uc_seq=284&lang_cd=ko",
+        "https://www.busan.go.kr/news/specnews/view?bbsNo=6&dataNo=20561&srchThemeNo=9"
+      ],
+      "baselineGeometryEvidence": {
+        "currentLengthM": 1802,
+        "pieces": 68,
+        "connectedGroups": 1,
+        "bbox": [
+          129.1507,
+          35.1523,
+          129.1546,
+          35.1571
+        ],
+        "note": "현재 선형은 큐레이션 점 68쌍을 OSM 길로 재구성했고 앞선 검토에서 28번(11m→71m)·57번(34m→165m) 쌍이 도로 우회를 더한 것으로 확인됐다. 공식 GPX 통과 길이(약 1.4~1.6km)와 큐레이션 순환 1.61km는 비슷한 규모다. 어느 수치가 '한 바퀴'인지는 노선 겹침 확인 전에는 단정하지 않는다.",
+        "distanceComparisonOnly": {
+          "currentOverSmallestFigure": 1.9,
+          "currentOverGpxPass": 1.12,
+          "caveat": "거리 비율일 뿐이며 같은 노선임을 확인하지 않았다"
+        }
+      },
+      "baselineFindings": [
+        "비짓부산 950m(해안 데크)와 부산시보 1km(공원 순환도로)는 서로 다른 대상일 수 있어 하나의 '공식 한 바퀴'로 합칠 수 없음",
+        "공식 갈맷길 2-1 GPX 두 종류가 동백섬 상자 안을 약 1.41~1.44km(+서쪽 171m) 지나가므로 1.6km 안팎의 둘레는 공식 선형과 같은 규모임. 이는 거리 비교이며 같은 노선 확인이 아님",
+        "1.5km 수치는 개인 기고문뿐이라 공식 근거로 쓰지 않음",
+        "현재 1.8km에는 왕복·도로 우회가 포함돼 있으나, 공식 값 대비 두 배라고 결론내리지 않음"
+      ]
+    },
+    {
+      "code": "HD-MOONTAN",
+      "name": "달맞이 문탠로드",
+      "sources": [
+        {
+          "url": "https://www.visitbusan.net/kr/index.do?menuCd=DOM_000000202004001000&uc_seq=283&lang_cd=ko",
+          "title": "일출과 월출 모두를 품은 달맞이길 & 문탠로드",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "문탠로드 총 2.2km 구간, 출발점으로 돌아오는 원점회귀, 약 1시간, 해월정 중간, 문탠로드 이름은 2008년 4월 확정",
+          "doesNotProve": "GPX·정확한 시작/끝 좌표 없음, 게시 날짜 없음"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/specnews/view?bbsNo=6&dataNo=23836&srchThemeNo=15",
+          "title": "해운대 문탠 로드 달빛산책 (부산시보, 2008-08-20)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "2.2㎞ 구간, 해운대해수욕장~미포~달맞이길~달맞이동산 오솔길~어울마당~해월정",
+          "doesNotProve": "2008년 자료, GPX 없음"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/specnews/view?bbsNo=6&dataNo=34061&srchThemeNo=60",
+          "title": "달빛 따라 걷는 길, 파도는 재잘거리고 (부산시보, 2011-08-10)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "2.2㎞, 한 바퀴 40여분, 달빛 나들목·바다 전망대·어울마당·해월정 언급",
+          "doesNotProve": "2011년 자료, 명시적 원점회귀 표기 없음"
+        },
+        {
+          "url": "https://www.ktriptips.com/kor/leisure/2381567",
+          "title": "문탠로드 (K-TRIP TIPS)",
+          "authority": "민간 여행정보 사이트(한국관광공사 출처 표기 없음)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "다섯 구간 달빛꽃잠길 0.4·달빛가온길 0.4·달빛바투길 0.7·달빛함께길 0.5·달빛만남길 0.5km(합 2.5km는 단순 합산)",
+          "doesNotProve": "공식 근거로 쓰면 안 됨, 전체 길이 미표기"
+        },
+        {
+          "url": "https://www.durunubi.kr/4-2-1-1-walk-mobility-view-detail.do?crs_idx=T_CRS_MNG0000000073&brd_div=DNWW",
+          "title": "갈맷길 2-1코스 (두루누비)",
+          "authority": "한국관광공사(두루누비 운영)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "갈맷길 2-1 12.0km 비순환형 약 4시간, 경로표 '문탠로드-(1.4km)-해운대해수욕장-(1.0km)-누리마루 APEC하우스-(3.3km)-민락교', 미포~청사포~송정 4.8km 블루라인, GPX 다운로드 링크 존재",
+          "doesNotProve": "문탠로드·동백섬 단독 코스 길이 아님(구간 거리). 갈맷길 2-1 GPX는 내려받아 확인함(275점, 약 11,864m, 부산시 2024 GPX와 다른 단순화 선형)"
+        },
+        {
+          "url": "https://www.durunubi.kr/download?filePath=/data/koreamobility/file/2023/05/11794524b3394927857bab4204eca27a.gpx&downloadName=갈맷길_2-1코스.gpx&course_id=T_CRS_MNG0000000073",
+          "title": "갈맷길 2-1코스 GPX (두루누비 공개 다운로드)",
+          "authority": "한국관광공사(두루누비 운영)",
+          "readStatus": "downloaded_and_inspected_by_claude",
+          "supports": "한국관광공사 제공 2-1 GPX 275점, 길이 약 11,864m, 부산시 2024-10-01 GPX(1,156점, 11,586m)와 비교용 독립 선형",
+          "doesNotProve": "파일 작성자 표시가 bikeroute.xyz(2023-05 경로)로 부산시 원본과 다른 단순화 선형이며 동백섬·문탠로드 단독 코스가 아님",
+          "localCopy": ".wrangler/scaffold-review/downloads/durunubi-2-1/galmaetgil-2-1-durunubi.gpx (git 무시 폴더)"
+        }
+      ],
+      "officialDistanceM": {
+        "value": 2200,
+        "range": [
+          2200,
+          2500
+        ],
+        "note": "비짓부산·부산시보 2.2km 원점회귀(한 바퀴 약 40분~1시간). 민간 사이트의 다섯 구간 합산은 2.5km(비공식)."
+      },
+      "officialWaypoints": [
+        "달맞이길 입구(문탠로드 입구)",
+        "달빛 나들목",
+        "바다 전망대",
+        "달맞이동산 오솔길",
+        "어울마당",
+        "해월정",
+        "달맞이길 입구로 복귀"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 2551,
+        "displayedGeometryMetrics": {
+          "lengthM": 2552,
+          "lineFeatures": 33,
+          "points": 149,
+          "components": 1,
+          "branchNodes": 2,
+          "endpoints": 2,
+          "repeatedEdgeOccurrences": 19,
+          "method": "coordinate_adjacency_0.3m_not_access_validation"
+        },
+        "source": "/data/haeundae/courses/HD-MOONTAN.geojson",
+        "note": "공유 OSM 노드를 따라 어울마당·해월정 경유 원점회귀를 완성했다. 공식 2.2km 동일 노선과 입구·바다전망대의 정확한 대응은 미확정이다."
+      },
+      "findings": [
+        "공유 OSM 노드를 따라 어울마당·해월정 경유 원점회귀를 완성했다. 공식 2.2km 동일 노선과 입구·바다전망대의 정확한 대응은 미확정이다."
+      ],
+      "recommendedAction": "선형 재구성 완료. 출처 날짜를 유지하고 실제 현장 변화·통행 상태와 추정 경유점의 이름을 대조한다.",
+      "lineCoversOfficial": "complete_reconstructed_waypoint_loop_with_uncertain_identity",
+      "lineCoversOfficialNote": "공유 OSM 노드를 따라 어울마당·해월정 경유 원점회귀를 완성했다. 공식 2.2km 동일 노선과 입구·바다전망대의 정확한 대응은 미확정이다.",
+      "uiEvidenceLinks": [
+        "https://www.visitbusan.net/kr/index.do?menuCd=DOM_000000202004001000&uc_seq=283&lang_cd=ko",
+        "https://www.busan.go.kr/news/specnews/view?bbsNo=6&dataNo=34061&srchThemeNo=60"
+      ],
+      "baselineGeometryEvidence": {
+        "currentLengthM": 1456,
+        "pieces": 20,
+        "connectedGroups": 1,
+        "bbox": [
+          129.1771,
+          35.1558,
+          129.1872,
+          35.1619
+        ],
+        "note": "현재 1.46km, 공식 안내 2.2km 원점회귀. 거리 비율 0.66은 포함 비율이 아니다. 같은 노선인지 확인하지 않았다. 공식 2-1 GPX는 문탠로드 상자 안을 약 1.14km(부산시)·1.20km(두루누비) 지나갈 뿐 문탠로드 2.2km 루프와 같은지 확인되지 않는다.",
+        "distanceComparisonOnly": {
+          "currentOverOfficial": 0.66,
+          "caveat": "1,456m ÷ 2,200m는 거리 비율일 뿐 실제 포함 비율이 아님(같은 노선·구간이 확인되지 않음)"
+        }
+      },
+      "baselineFindings": [
+        "공식 코스는 약 2.2km 원점회귀인데 현재 선형이 더 짧다",
+        "공식 기준은 시보 2008·2011과 비짓부산 모두 2.2km로 일치",
+        "문탠로드 전용 GPX·공간자료는 확인하지 못함"
+      ]
+    },
+    {
+      "code": "HD-DALMAJI",
+      "name": "달맞이길(차도 기준 근사)",
+      "sources": [
+        {
+          "url": "https://www.haeundae.go.kr/tour/board/view.do?boardId=BBS_0000103&menuCd=DOM_000000301001000000&dataSid=3000151",
+          "title": "달맞이길 (해운대구청 문화관광)",
+          "authority": "해운대구청(공식)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "달맞이길은 8km에 달하는 드라이브 코스, 달맞이동산·해월정·새천년기념시계탑 언급",
+          "doesNotProve": "도보 코스가 아니라 차도, 편도/왕복·GPX 없음, 날짜 없음"
+        },
+        {
+          "url": "https://www.visitbusan.net/kr/index.do?menuCd=DOM_000000202004001000&uc_seq=283&lang_cd=ko",
+          "title": "일출과 월출 모두를 품은 달맞이길 & 문탠로드",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "문탠로드 총 2.2km 구간, 출발점으로 돌아오는 원점회귀, 약 1시간, 해월정 중간, 문탠로드 이름은 2008년 4월 확정",
+          "doesNotProve": "GPX·정확한 시작/끝 좌표 없음, 게시 날짜 없음"
+        },
+        {
+          "url": "https://www.visitbusan.net/index.do?menuCd=DOM_000000201001001000&uc_seq=280&lang_cd=ko",
+          "title": "자연 그대로를 간직하다, 송정해수욕장",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "죽도공원 해안 산책길·송일정 소개, 해운대에서 달맞이길로 송정까지 이어짐",
+          "doesNotProve": "걷기 길이 없음, 동암해안길 언급 없음"
+        },
+        {
+          "url": "https://www.ktriptips.com/kor/course/1889286",
+          "title": "해운대를 지나 문탠로드를 걷다 (K-TRIP TIPS)",
+          "authority": "민간 여행정보 사이트",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "누리마루·해운대·달맞이길·송정·해동 용궁사를 잇는 11.5km 6시간 여행 코스(예시)",
+          "doesNotProve": "공식 코스 아님, 구간별 길이·GPX 없음, 문탠로드 단독 길이로 쓰면 안 됨"
+        }
+      ],
+      "officialDistanceM": {
+        "value": 8000,
+        "range": [
+          8000,
+          8000
+        ],
+        "note": "해운대구청 '8km에 달하는 드라이브 코스'. 도보 코스 공식 길이는 아님."
+      },
+      "officialWaypoints": [
+        "해운대해수욕장(미포 방면)",
+        "달맞이동산",
+        "해월정",
+        "새천년기념시계탑",
+        "송정해수욕장 방면"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 6837,
+        "pieces": 24,
+        "connectedGroups": 1,
+        "bbox": [
+          129.1652,
+          35.1563,
+          129.1975,
+          35.1803
+        ],
+        "note": "차도 기준 근사이며 313m 도로 우회가 포함됩니다. 공식 8km 드라이브 코스보다 약 1.2km 짧습니다.",
+        "distanceComparisonOnly": {
+          "currentOverOfficial": 0.85,
+          "caveat": "6.84km÷8km는 거리 비율, 공식 8km는 드라이브 도로"
+        }
+      },
+      "findings": [
+        "공식 자료는 보행 코스가 아니라 8km 드라이브 도로",
+        "문탠로드(2.2km 숲길)와 다른 길인데 이름이 섞이기 쉽다",
+        "313m 도로 우회는 공식 근거 없음(OSM 도로 연결)"
+      ],
+      "recommendedAction": "코스를 '도로 참고선'으로 표시하고 공식 문탠로드 코스와 분리한다. 8km 대비 누락 구간(송정 방면 끝)을 확인하고 313m 우회는 미검증 표시를 유지한다.",
+      "lineCoversOfficial": "not_determined",
+      "lineCoversOfficialNote": "공식은 8km 드라이브 도로이고 보행 코스가 아님. 6.84km는 거리 비교일 뿐 같은 구간인지 미확인이며 전체 보행 가능 여부도 미확인",
+      "uiEvidenceLinks": [
+        "https://www.haeundae.go.kr/tour/board/view.do?boardId=BBS_0000103&menuCd=DOM_000000301001000000&dataSid=3000151"
+      ]
+    },
+    {
+      "code": "HD-BEACHPROM",
+      "name": "해운대 해변 산책로(해운대해변로 북측 보행로)",
+      "sources": [
+        {
+          "url": "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000302001001000",
+          "title": "해운대해수욕장 소개 (해운대구청)",
+          "authority": "해운대구청(공식, 최종수정 2024-01-29)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "백사장 길이 1.5km, 폭 70~90m, 면적 120,000㎡, 경관조명 길이 1.6km",
+          "doesNotProve": "백사장 길이이며 해변 산책로(보행로) 길이가 아님"
+        },
+        {
+          "url": "https://www.visitbusan.net/en/index.do?menuCd=DOM_000000201001001000&uc_seq=373&lang_cd=ko",
+          "title": "부산 바다의 정석, 해운대해수욕장",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "1.5km 길이의 백사장, 동백섬·더베이101 등 주변",
+          "doesNotProve": "산책로 길이 아님"
+        },
+        {
+          "url": "https://visitbusan.net/index.do?lang_cd=ko&menuCd=DOM_000000202002001000&uc_seq=1399",
+          "title": "기운차게 시작하는 아침, 일출 조깅코스 추천 (여행작가 기고)",
+          "authority": "비짓부산 게시(필자 개인 기고, 공식 측정 아님)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "수영만요트경기장→영화의거리(약 1km)→동백해안산책로(약 1.5km 남짓)→해운대해변산책로→미포, 전체 약 5km 조깅 코스",
+          "doesNotProve": "동백섬 950m 안내와 상충, 측정 근거 없음, 편도/왕복 미표기"
+        },
+        {
+          "url": "https://www.haeundae.go.kr/board/download.do?boardId=BBS_0000048&paging=ok&startPage=1&dataSid=3098197&command=update&fileSid=3080449",
+          "title": "해운대 자전거지도 (공개 다운로드 파일)",
+          "authority": "해운대구청(공식)",
+          "readStatus": "downloaded_and_inspected_by_claude",
+          "supports": "해운대 일대 일러스트 자전거지도: 수영강코스(초보자)·도시투어코스(중급)·동해안코스(고급) 세 코스, 범례는 자전거전용도로·자전거도로(보행자겸용)·일반도로, 자전거 대여 가능 지점 표시, '해운대 해변길 자전거 진입 불가' 표시",
+          "doesNotProve": "거리 수치 없음, 좌표·EXIF·GeoTIFF 같은 공간정보 없음(JPEG 일러스트), 축척 없는 그림이라 선형을 따라 그릴 수 없음, 동백섬 둘레 선은 그려져 있지 않음",
+          "localCopy": ".wrangler/scaffold-review/downloads/haeundae-bikemap/haeundae-bikemap.jpg (git 무시 폴더)"
+        }
+      ],
+      "officialDistanceM": {
+        "value": null,
+        "note": "해변 산책로(보행로) 자체의 공식 길이는 찾지 못함. 공식 수치는 백사장 1.5km, 경관조명 1.6km뿐."
+      },
+      "officialWaypoints": [
+        "동백섬 방면 서쪽 끝",
+        "해운대해변산책로(우동 757 일대)",
+        "미포"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 939,
+        "pieces": 5,
+        "connectedGroups": 1,
+        "bbox": [
+          129.16,
+          35.1589,
+          129.1699,
+          35.1597
+        ],
+        "note": "동서 폭 약 0.9km로 1.5km 백사장보다 짧습니다. 서쪽 구간이 빠졌는지는 지도로 확인하지 못했습니다(좌표 범위에서 추정)."
+      },
+      "findings": [
+        "공식 해변 산책로 길이 자료 없음",
+        "현재 선은 백사장 길이(1.5km)의 약 63%",
+        "공식 해운대구 자전거지도에 '해운대 해변길 자전거 진입 불가' 표시가 있어 해변 길은 보행 전용으로 다뤄야 함(자전거 경로 안내에 쓰지 말 것)"
+      ],
+      "recommendedAction": "백사장 1.5km와 경관조명 1.6km를 비교 기준으로 쓰되 공식 코스 길이로 표기하지 않는다. 서쪽 끝 연결(동백섬 접속)을 OSM 보행로로 확인한 뒤 확장 여부를 정한다.",
+      "lineCoversOfficial": "not_determined",
+      "lineCoversOfficialNote": "공식 해변 산책로 길이가 없고 백사장 1.5km는 보행로가 아님. 좌표 범위 폭 약 0.9km는 서쪽 구간이 빠졌다는 증거가 아님",
+      "uiEvidenceLinks": [
+        "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000302001001000"
+      ]
+    },
+    {
+      "code": "HD-BEACHPROM-EXT",
+      "name": "해운대 해변 산책로 미포 연장",
+      "sources": [
+        {
+          "url": "https://www.durunubi.kr/4-2-1-1-walk-mobility-view-detail.do?crs_idx=T_CRS_MNG0000000073&brd_div=DNWW",
+          "title": "갈맷길 2-1코스 (두루누비)",
+          "authority": "한국관광공사(두루누비 운영)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "갈맷길 2-1 12.0km 비순환형 약 4시간, 경로표 '문탠로드-(1.4km)-해운대해수욕장-(1.0km)-누리마루 APEC하우스-(3.3km)-민락교', 미포~청사포~송정 4.8km 블루라인, GPX 다운로드 링크 존재",
+          "doesNotProve": "문탠로드·동백섬 단독 코스 길이 아님(구간 거리). 갈맷길 2-1 GPX는 내려받아 확인함(275점, 약 11,864m, 부산시 2024 GPX와 다른 단순화 선형)"
+        },
+        {
+          "url": "https://www.busan.go.kr/eng/bsnews01/1509210",
+          "title": "Busan Green Railway Wins the 2021 Korean Landscape Architectural Award",
+          "authority": "부산광역시(영문 보도, 2021-10-25)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "부산 그린레일웨이 전체 9.8km: 해운대 올림픽교차로~...~미포~달맞이공원~청사포~구덕포~송정~오시리아",
+          "doesNotProve": "미포 연장 546m 구간 범위, GPX 없음"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/snsbusan01/view?dataNo=42669",
+          "title": "해운대 폐선부지, 기차 대신 자전거 달린다 (2013-11-27)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "해운대 미포~송정 4.8km 산책길·자전거길 계획, 올림픽교차로~동부산관광단지 9.8km",
+          "doesNotProve": "2013년 계획 수치(현재 준공 길이 아님)"
+        }
+      ],
+      "officialDistanceM": {
+        "value": null,
+        "note": "미포 연장 구간 자체의 공식 길이는 없음. 미포~청사포~송정 4.8km(두루누비·시보)는 더 긴 구간."
+      },
+      "officialWaypoints": [
+        "미포",
+        "달맞이공원",
+        "청사포",
+        "구덕포",
+        "송정"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 546,
+        "pieces": 6,
+        "connectedGroups": 1,
+        "bbox": [
+          129.1698,
+          35.1577,
+          129.1735,
+          35.1602
+        ],
+        "note": "미포~송정 4.8km 중 시작 부분일 뿐입니다."
+      },
+      "findings": [
+        "공식 코스 대응이 없는 짧은 연장선",
+        "미포~송정 4.8km는 별도의 공식 구간으로 존재"
+      ],
+      "recommendedAction": "연장선을 유지하되 이름에 '미포 연장(공식 코스 아님)'을 붙이거나, 공식 4.8km(블루라인파크)로 확장할지 결정한다. 해당 구간 GPX는 두루누비 갈맷길 2-1에서 대조한다.",
+      "lineCoversOfficial": "not_an_official_course",
+      "lineCoversOfficialNote": "공식 코스가 아닌 미포 연장선. 미포~청사포~송정 4.8km 중 일부라는 것도 거리·위치 추정일 뿐",
+      "uiEvidenceLinks": [
+        "https://www.durunubi.kr/4-2-1-1-walk-mobility-view-detail.do?crs_idx=T_CRS_MNG0000000073&brd_div=DNWW",
+        "https://www.busan.go.kr/eng/bsnews01/1509210"
+      ]
+    },
+    {
+      "code": "HD-BEACHROAD",
+      "name": "해운대해변로(차도 기준 근사)",
+      "sources": [
+        {
+          "url": "https://visitbusan.net/index.do?lang_cd=ko&menuCd=DOM_000000202002001000&uc_seq=1399",
+          "title": "기운차게 시작하는 아침, 일출 조깅코스 추천 (여행작가 기고)",
+          "authority": "비짓부산 게시(필자 개인 기고, 공식 측정 아님)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "수영만요트경기장→영화의거리(약 1km)→동백해안산책로(약 1.5km 남짓)→해운대해변산책로→미포, 전체 약 5km 조깅 코스",
+          "doesNotProve": "동백섬 950m 안내와 상충, 측정 근거 없음, 편도/왕복 미표기"
+        },
+        {
+          "url": "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000302001001000",
+          "title": "해운대해수욕장 소개 (해운대구청)",
+          "authority": "해운대구청(공식, 최종수정 2024-01-29)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "백사장 길이 1.5km, 폭 70~90m, 면적 120,000㎡, 경관조명 길이 1.6km",
+          "doesNotProve": "백사장 길이이며 해변 산책로(보행로) 길이가 아님"
+        }
+      ],
+      "officialDistanceM": {
+        "value": null,
+        "note": "해운대해변로 도로의 공식 길이는 찾지 못함. 비짓부산 기고 조깅 코스는 수영만요트경기장→미포 약 5km."
+      },
+      "officialWaypoints": [
+        "수영만요트경기장(해운대해변로 84)",
+        "영화의거리(약 1km)",
+        "동백해안산책로",
+        "해운대해변산책로",
+        "미포"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 4614,
+        "pieces": 20,
+        "connectedGroups": 1,
+        "bbox": [
+          129.1351,
+          35.1578,
+          129.1724,
+          35.1668
+        ],
+        "note": "개인 기고 조깅 코스(약 5km)와 대략 맞지만 공식 수치가 아닙니다."
+      },
+      "findings": [
+        "도로 기준 근사선이며 도보 공식 코스가 아님",
+        "조깅 코스 5km는 필자 개인 기고"
+      ],
+      "recommendedAction": "'차도 기준 참고선' 라벨을 유지한다. 필요하면 조깅 코스를 출처 라벨을 붙인 별도 후보로 추가한다.",
+      "lineCoversOfficial": "not_determined",
+      "lineCoversOfficialNote": "공식 길이 없음. 차도 중심선 전체의 보행 가능 여부 미확인",
+      "uiEvidenceLinks": [
+        "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000302001001000"
+      ]
+    },
+    {
+      "code": "HD-SONGJEONG",
+      "name": "송정 해안(송정옛길·동암해안길)",
+      "sources": [
+        {
+          "url": "https://www.haeundae.go.kr/board/view.do?boardId=BBS_0000084&paging=ok&startPage=3&dataSid=3064108",
+          "title": "송정옛길을 따라 걷다 (해운대구청, 2020-08-06)",
+          "authority": "해운대구청(공식)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "송정옛길 약 2km(좌동 부산환경공단 앞→송정해수욕장), 신곡산 전망대 180m 계단길, 270m 숲길, 폭 약 4m 무장애길, 기억쉼터·메타세콰이어 숲길",
+          "doesNotProve": "동암해안길·죽도공원 해안길은 다루지 않음, 첨부는 JPG뿐(GPX 없음)"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/storyreport/view?dataNo=71677&curPage=14",
+          "title": "역사와 문화가 서려있는 <송정옛길> (부산시보, 2025-08-27)",
+          "authority": "부산광역시(공식)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "송정옛길 2km, 해운대구 좌동 부산환경공단 앞→송정동 산58",
+          "doesNotProve": "종점이 2020년 자료의 송정해수욕장과 표현이 다름, GPX 없음"
+        },
+        {
+          "url": "https://www.visitbusan.net/index.do?menuCd=DOM_000000201001001000&uc_seq=280&lang_cd=ko",
+          "title": "자연 그대로를 간직하다, 송정해수욕장",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "죽도공원 해안 산책길·송일정 소개, 해운대에서 달맞이길로 송정까지 이어짐",
+          "doesNotProve": "걷기 길이 없음, 동암해안길 언급 없음"
+        }
+      ],
+      "officialDistanceM": {
+        "value": 2000,
+        "range": [
+          2000,
+          2000
+        ],
+        "note": "송정옛길 약 2km(해운대구청 2020, 부산시 2025). 신곡산 전망대 180m 계단길과 270m 숲길은 하위 구간."
+      },
+      "officialWaypoints": [
+        "해운대구 좌동 부산환경공단 앞",
+        "메타세쿼이아 숲길",
+        "기억쉼터",
+        "신곡산 전망대",
+        "송정동 산58 / 송정터널 입구 달맞이교"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 2101,
+        "pieces": 6,
+        "connectedGroups": 1,
+        "bbox": [
+          129.1834,
+          35.1753,
+          129.193,
+          35.18
+        ],
+        "note": "송정옛길 2조각(1,109m+993m)이 길이상 공식 2km와 일치합니다. 6조각은 서로 이어져 있습니다. 코스 이름의 '동암해안길'은 데이터에 없고 공식 자료에서도 확인하지 못했습니다.",
+        "networkCheck": {
+          "eastEnd": [
+            129.19304,
+            35.1779
+          ],
+          "westEnd": [
+            129.18342,
+            35.17595
+          ],
+          "namesInCourse": [
+            "송정옛길",
+            "송정옛길(산책로 구간)"
+          ],
+          "nearestNamedWayToEastEnd": "송정해변로 약 426m, 송정광어골로82번길 약 146m",
+          "namedWay동암해안길InNetwork": false,
+          "note": "해운대구 경계+150m 여유의 OSM 네트워크 기준. 송정해수욕장 백사장(약 129.20대)보다 내륙"
+        }
+      },
+      "findings": [
+        "길이는 공식 송정옛길 2km와 일치",
+        "이름의 동암해안길과 죽도공원 해안길은 근거 없음",
+        "종점 표기가 2020(송정해수욕장)과 2025(송정동 산58)에서 다름",
+        "이름에 '해안'이 들어 있지만 현재 선은 내륙 고갯길이라 이름과 일치하지 않음(이름 일치 집계가 해안 코스인지 묻는 질문의 답: 아님)"
+      ],
+      "recommendedAction": "코스 이름을 '송정옛길'로 정리하고 동암해안길 문구는 근거 확보 전까지 제거한다. 해안 구간(죽도공원 등)은 별도 코스로 조사한다. 종점은 2025 부산시 안내(송정동 산58) 기준으로 맞추고 차이를 메모한다.",
+      "lineCoversOfficial": "name_and_length_match_inland_old_road",
+      "lineCoversOfficialNote": "OSM 이름 '송정옛길'과 길이 2km가 공식과 맞지만 GPX가 없어 같은 노선임은 확인하지 않음. 내륙 고갯길이며 해안 코스가 아님",
+      "uiEvidenceLinks": [
+        "https://www.haeundae.go.kr/board/view.do?boardId=BBS_0000084&paging=ok&startPage=3&dataSid=3064108",
+        "https://www.busan.go.kr/news/storyreport/view?dataNo=71677&curPage=14"
+      ]
+    },
+    {
+      "code": "HD-SUYEONG",
+      "name": "수영강 자전거길(해운대 구간)",
+      "sources": [
+        {
+          "url": "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000306009000000",
+          "title": "해운대 자전거지도 (해운대구청, 최종수정 2026-09-15)",
+          "authority": "해운대구청(공식)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "민락역에서 수영강 자전거길을 거쳐 해운대로 가는 안내, 수영강 자전거대여소(좌수영교 아래), '자전거지도 다운로드' 링크(BBS_0000048, fileSid=3080449)",
+          "doesNotProve": "수영강 구간 길이·편도/순환 미표기. 내려받은 파일은 JPEG 일러스트이며 거리·좌표가 없어 선형 근거가 못 됨"
+        },
+        {
+          "url": "https://visitbusan.net/index.do?lang_cd=ko&menuCd=DOM_000000202004001000&uc_seq=1171",
+          "title": "걷기 좋은 강변산책로",
+          "authority": "비짓부산(부산광역시 공식 관광 포털)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "수영강변 산책로 동천교→좌수영교→민락교, 갈맷길 8-2코스의 일부",
+          "doesNotProve": "길이 없음, 해운대구 구간 한정 아님"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/snsbusan01/view?bbsNo=1&dataNo=33143&srchThemeNo=50",
+          "title": "온천천~수영강 산책길 잇는다 (2011-05-11)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "수영강 14.6㎞(온천천 12.9㎞와 합쳐 27.5㎞), 685m 연결 데크",
+          "doesNotProve": "해운대구 구간 길이 아님(수영강 전체 길이 맥락), 2011년 계획 시점 수치, 한쪽 강변인지 불명"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/snsbusan01/view?dataNo=23897&gugun=Prev",
+          "title": "부산 도심에 첫 자전거 시범단지 (2008-09-03)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "2009년 추가 계획: 원동IC~수영1호교 4.25㎞, 센텀e편한세상~나루공원 1.95㎞, 수영강·온천천 연결 24.2㎞ 일주도로 구상",
+          "doesNotProve": "2008년 계획, 해운대 구간 현재 길이 아님"
+        },
+        {
+          "url": "https://www.busan.go.kr/news/specnews/view?dataNo=56968&curPage=1&srchThemeNo=167",
+          "title": "수영강 곁에 두고 걷는 APEC나루공원 (2016-11-30)",
+          "authority": "부산광역시(부산시보 재게재)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "APEC나루공원 총길이 960m, 산책로 3.5km, 조깅코스 700m, 수영강은 부산에서 두 번째로 긴 하천",
+          "doesNotProve": "수영강 해운대 구간 길이 없음"
+        },
+        {
+          "url": "https://www.busan.go.kr/eng/bsnews01/1721210",
+          "title": "Suyeonggang Human Bridge (부산시 영문 보도, 2026-03-05)",
+          "authority": "부산광역시(공식)",
+          "readStatus": "read_by_fetch_agent_http200",
+          "supports": "수영강 휴먼브리지는 보행 전용, APEC나루공원과 수영구 연결",
+          "doesNotProve": "수영강 자전거길 길이 없음, 다리 길이 254m는 다른 보도(totalnews01 72450)에서 확인"
+        },
+        {
+          "url": "https://www.haeundae.go.kr/board/download.do?boardId=BBS_0000048&paging=ok&startPage=1&dataSid=3098197&command=update&fileSid=3080449",
+          "title": "해운대 자전거지도 (공개 다운로드 파일)",
+          "authority": "해운대구청(공식)",
+          "readStatus": "downloaded_and_inspected_by_claude",
+          "supports": "해운대 일대 일러스트 자전거지도: 수영강코스(초보자)·도시투어코스(중급)·동해안코스(고급) 세 코스, 범례는 자전거전용도로·자전거도로(보행자겸용)·일반도로, 자전거 대여 가능 지점 표시, '해운대 해변길 자전거 진입 불가' 표시",
+          "doesNotProve": "거리 수치 없음, 좌표·EXIF·GeoTIFF 같은 공간정보 없음(JPEG 일러스트), 축척 없는 그림이라 선형을 따라 그릴 수 없음, 동백섬 둘레 선은 그려져 있지 않음",
+          "localCopy": ".wrangler/scaffold-review/downloads/haeundae-bikemap/haeundae-bikemap.jpg (git 무시 폴더)"
+        }
+      ],
+      "officialDistanceM": {
+        "value": null,
+        "note": "해운대 구간만의 공식 길이는 찾지 못함. 수영강 전체 14.6km(2011 부산시보, 온천천과 합쳐 27.5km 맥락). 8.85km(광안리 연결 자전거 전용도로) 수치는 검색 요약에서만 보았고 직접 읽지 못함."
+      },
+      "officialWaypoints": [
+        "동천교",
+        "좌수영교(수영강 자전거대여소)",
+        "민락교",
+        "APEC나루공원",
+        "수영강 휴먼브리지(보행 전용)"
+      ],
+      "geometryEvidence": {
+        "currentLengthM": 7342,
+        "displayedGeometryMetrics": {
+          "lengthM": 7342,
+          "lineFeatures": 1,
+          "points": 708,
+          "components": 1,
+          "branchNodes": 0,
+          "endpoints": 2,
+          "repeatedEdgeOccurrences": 0,
+          "method": "coordinate_adjacency_0.3m_not_access_validation"
+        },
+        "source": "/data/haeundae/courses/HD-SUYEONG.geojson",
+        "note": "이름으로 모은 3개 선형 대신 부산시 8-2 GPX의 동천교→민락교 전체 708점을 사용한다. 2026 현장 상태나 새 신호 분석을 보증하지 않는다."
+      },
+      "findings": [
+        "이름으로 모은 3개 선형 대신 부산시 8-2 GPX의 동천교→민락교 전체 708점을 사용한다. 2026 현장 상태나 새 신호 분석을 보증하지 않는다."
+      ],
+      "recommendedAction": "선형 재구성 완료. 출처 날짜를 유지하고 실제 현장 변화·통행 상태와 추정 경유점의 이름을 대조한다.",
+      "lineCoversOfficial": "complete_official_gpx_reference_8_2_20241001",
+      "lineCoversOfficialNote": "이름으로 모은 3개 선형 대신 부산시 8-2 GPX의 동천교→민락교 전체 708점을 사용한다. 2026 현장 상태나 새 신호 분석을 보증하지 않는다.",
+      "uiEvidenceLinks": [
+        "https://www.haeundae.go.kr/tour/index.do?menuCd=DOM_000000306009000000",
+        "https://visitbusan.net/index.do?lang_cd=ko&menuCd=DOM_000000202004001000&uc_seq=1171"
+      ],
+      "baselineGeometryEvidence": {
+        "currentLengthM": 12530,
+        "pieces": 12,
+        "connectedGroups": 3,
+        "bbox": [
+          129.1137,
+          35.1635,
+          129.1323,
+          35.2186
+        ],
+        "note": "연결 덩어리가 3개이고 12.5km는 양안·여러 갈래를 합친 값일 가능성이 있습니다. 비교할 공식 해운대 구간 길이는 없습니다."
+      },
+      "baselineFindings": [
+        "공식 해운대 구간 길이 자료 없음",
+        "휴먼브리지는 보행 전용이라 자전거 경로에 포함하면 안 됨",
+        "해운대구 자전거지도 다운로드 파일이 있어 좌표 자료일 가능성이 있지만 형식 미확인",
+        "갈맷길 8-2(동천교→민락교, Codex 확인 7.6km)가 공식 보행 대응",
+        "해운대구 자전거지도(JPEG)에는 수영강코스(초보자)가 자전거전용도로·자전거도로(보행자겸용)·일반도로로 구분돼 그려져 있으나 거리와 좌표가 없어 선형 근거로 쓸 수 없음"
+      ]
+    }
+  ],
+  "sharedWithCodex": {
+    "note": "Codex 전수검사 결과를 참고로 옮김(내가 확인한 것이 아님)",
+    "suyeong": "연결 요소 3개, 끝점 8개",
+    "moontan": "1.456km 가지 1개",
+    "officialFour": "GPX 종점 접속 간격 8.6m/1.3m(원본 수정 없음)"
+  },
+  "gpxDerivedFacts": {
+    "note": "공식 2-1 GPX 두 종류를 동백섬·문탠로드 좌표 상자 안으로 잘라 잰 길이. 한 번 통과한 길이이며 코스 둘레와 같다고 볼 수 없음",
+    "dongbaekBox": {
+      "bbox": [
+        129.15,
+        35.1518,
+        129.1552,
+        35.1575
+      ],
+      "busan2024": {
+        "totalInBoxM": 1607,
+        "mainRunM": 1436,
+        "secondRunM": 171,
+        "mainRunStartToEndStraightM": 225
+      },
+      "durunubi2023": {
+        "totalInBoxM": 1444,
+        "mainRunM": 1414,
+        "mainRunStartToEndStraightM": 208
+      }
+    },
+    "moontanBox": {
+      "bbox": [
+        129.1765,
+        35.1552,
+        129.1878,
+        35.1625
+      ],
+      "busan2024InBoxM": 1139,
+      "durunubi2023InBoxM": 1199
+    }
+  },
+  "routeRefinement": {
+    "date": "2026-11-28",
+    "displayedCourses": 13,
+    "newVariant": "HD-DONGBAEK-COAST",
+    "note": "정밀한 표시 좌표와 현재 현장 통행·공식 노선 동일성은 별도 판단한다. baseline 필드는 교체 전 기록이다."
+  }
+}

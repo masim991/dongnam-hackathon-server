@@ -16,6 +16,8 @@
     <div id="list" role="group" aria-label="코스 목록">불러오는 중…</div>
   </details>
   <p id="info" class="info" role="status" aria-live="polite"></p>
+  <button type="button" id="fitCourse" class="btn btn-inline" disabled>코스 전체 보기</button>
+  <div id="courseEvidence" class="detail" aria-live="polite" hidden></div>
   <div id="detail" class="detail" aria-live="polite"></div>
   <details id="health" class="section" hidden>
     <summary>삼성헬스 연동 (안드로이드 앱 전용)</summary>
@@ -65,7 +67,7 @@
     <li><i class="sw sw-issue"></i>코스 선형 문제(눌러서 처리 내용 보기)</li>
     <li><i class="sw sw-bridge"></i>끊긴 곳을 잇는 점선 연결선</li>
     <li><i class="sw sw-osm-other"></i>OSM 무신호·미분류 횡단(참고)</li>
-    <li><i class="sw sw-entrance"></i>코스 출입구(누르면 가장 가까운 횡단까지 거리)</li>
+    <li><i class="sw sw-entrance"></i>코스 출입구·경유점(누르면 근거 또는 횡단 거리)</li>
   </ul>
   <p class="note">신호 없는 횡단보도는 공공 파일에 없습니다. 지도를 확대하면 코스 밖 신호제어기(14단계~)와 신호 횡단보도(15단계~)도 표시됩니다. 신호제어기 위치의 데이터기준일은 2020-12-31로 오래되었습니다.<br>© OpenStreetMap contributors (ODbL), 부산광역시 교통정보서비스센터</p>
 </section>

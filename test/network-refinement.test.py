@@ -8,9 +8,45 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 repair = runpy.run_path(str(ROOT / 'scripts/repair-course-connectivity.py'))
 official = runpy.run_path(str(ROOT / 'scripts/build-galmaetgil.py'))
+audit = runpy.run_path(str(ROOT / 'scripts/audit-course-coverage.py'))
 
 
 class RefinementTests(unittest.TestCase):
+    def test_outer_cycle_drops_an_entrance_spur_but_never_invents_an_edge(self):
+        nodes = {'a': [129.17, 35.17], 'b': [129.1701, 35.17], 'c': [129.1721, 35.17],
+                 'd': [129.1721, 35.172], 'e': [129.1701, 35.172]}
+        net = {'nodes': nodes, 'ways': [{'id': 1, 'walk': 'yes', 'nodes': ['a', 'b', 'c', 'd', 'e', 'b', 'a']}]}
+        feature = {'type': 'Feature', 'properties': {'layer': 'course', 'sourceWayIds': [1]},
+                   'geometry': {'type': 'LineString', 'coordinates': [nodes[n] for n in net['ways'][0]['nodes']]}}
+        result = repair['outer_source_cycle']([feature], net)
+        self.assertEqual(audit['geometry_metrics'](result)['endpoints'], 0)
+        self.assertFalse(any(nodes['a'] in f['geometry']['coordinates'] for f in result))
+        feature['geometry']['coordinates'] = [nodes[n] for n in ['b', 'd', 'e', 'b']]
+        with self.assertRaisesRegex(ValueError, '원본 OSM 선분'):
+            repair['outer_source_cycle']([feature], net)
+
+    def test_course_audit_does_not_connect_separate_or_crossing_lines(self):
+        def line(coords, layer='course'):
+            return {'properties': {'layer': layer}, 'geometry': {'type': 'LineString', 'coordinates': coords}}
+        features = [line([[129.17, 35.17], [129.172, 35.17]]),
+                    line([[129.171, 35.169], [129.171, 35.171]]),
+                    line([[129.18, 35.18], [129.181, 35.18]], 'archive')]
+        metrics = audit['geometry_metrics'](features)
+        self.assertEqual(metrics['components'], 2)
+        self.assertEqual(metrics['endpoints'], 4)
+        self.assertEqual(metrics['lineFeatures'], 2)
+        self.assertIn('not_access_validation', metrics['method'])
+
+    def test_road_references_never_claim_pedestrian_geometry(self):
+        catalog = json.loads((ROOT / 'public/data/haeundae/courses/index.json').read_text(encoding='utf-8'))
+        for course in catalog['courses']:
+            if course['kind'] != 'road_proxy':
+                continue
+            fc = json.loads((ROOT / ('public' + course['geojson'])).read_text(encoding='utf-8'))
+            self.assertEqual(fc['metadata']['geometryRole'], 'road_centerline')
+            self.assertTrue(all(f['properties']['roadAccessUnverified'] for f in fc['features'] if f['properties'].get('layer') == 'course'))
+            self.assertEqual(course['crossings_per_km'], round(course['unique_crossings'] * 1000 / course['length_m'], 2))
+
     def test_shared_nodes_connect_but_geometric_crossings_do_not(self):
         nodes = {'1': [129.17, 35.17], '2': [129.1701, 35.17], '3': [129.1702, 35.17],
                  '4': [129.1701, 35.1699], '5': [129.1701, 35.1701]}
@@ -80,7 +116,7 @@ class RefinementTests(unittest.TestCase):
         self.assertTrue(all(r['remainingStraightLinks'] == r['curatedManualLinks'] == 0 for r in report))
         dong = json.loads((ROOT / 'public/data/haeundae/courses/HD-DONGBAEK.geojson').read_text(encoding='utf-8'))
         segments = [f for f in dong['features'] if f['properties']['layer'] == 'course']
-        self.assertEqual(len(segments), 68)
+        self.assertEqual(audit['geometry_metrics'](segments)['endpoints'], 0)
         for a, b in zip(segments, segments[1:] + segments[:1]):
             self.assertLess(repair['distance'](a['geometry']['coordinates'][-1], b['geometry']['coordinates'][0]), 0.001)
             self.assertTrue(a['properties']['sourceWayIds'])
@@ -89,6 +125,41 @@ class RefinementTests(unittest.TestCase):
         detour = next(r for r in dal['metadata']['restoredConnectors'] if r.get('reviewedLongDetour'))
         self.assertGreater(detour['lengthM'], 310)
         self.assertTrue(detour['roadAccessUnverified'])
+
+    def test_both_dongbaek_routes_are_simple_source_cycles(self):
+        for code, low, high in [('HD-DONGBAEK', 950, 1000), ('HD-DONGBAEK-COAST', 1600, 1700)]:
+            fc = json.loads((ROOT / ('public/data/haeundae/courses/' + code + '.geojson')).read_text(encoding='utf-8'))
+            metrics = audit['geometry_metrics'](fc['features'])
+            self.assertEqual((metrics['components'], metrics['endpoints'], metrics['branchNodes'], metrics['repeatedEdgeOccurrences']), (1, 0, 0, 0))
+            self.assertTrue(low < metrics['lengthM'] < high)
+            segments = [f for f in fc['features'] if f['properties'].get('layer') == 'course']
+            for a, b in zip(segments, segments[1:] + segments[:1]):
+                self.assertLess(repair['distance'](a['geometry']['coordinates'][-1], b['geometry']['coordinates'][0]), .001)
+                self.assertTrue(a['properties']['sourceWayIds'])
+            self.assertEqual(fc['metadata']['trafficCoverage'], 'not_analyzed')
+
+    def test_suyeong_keeps_every_point_of_the_complete_official_reference(self):
+        fc = json.loads((ROOT / 'public/data/haeundae/courses/HD-SUYEONG.geojson').read_text(encoding='utf-8'))
+        reference = official['track_segments']((ROOT / 'data/reference/galmaetgil/8-2.gpx').read_bytes())[0]
+        self.assertEqual(fc['features'][0]['geometry']['coordinates'], reference)
+        metrics = audit['geometry_metrics'](fc['features'])
+        self.assertEqual((metrics['components'], metrics['endpoints'], metrics['branchNodes']), (1, 2, 0))
+        self.assertEqual(fc['metadata']['sourceDate'], '2024-10-01')
+        self.assertEqual(fc['metadata']['trafficCoverage'], 'not_analyzed')
+
+    def test_moontan_closed_traversal_uses_only_real_shared_node_edges(self):
+        route = json.loads((ROOT / 'data/curated/moontan-route.json').read_text(encoding='utf-8'))
+        meta = route['metadata']
+        net = json.loads((ROOT / 'public/data/haeundae/walking-network.json').read_text(encoding='utf-8'))
+        edges = {tuple(sorted((str(a), str(b)))) for w in net['ways'] for a, b in zip(w['nodes'], w['nodes'][1:])}
+        ids = meta['nodeIds']
+        self.assertEqual(ids[0], ids[-1])
+        self.assertTrue(all(tuple(sorted((str(a), str(b)))) in edges for a, b in zip(ids, ids[1:])))
+        self.assertEqual(meta['closure']['gapM'], 0)
+        self.assertEqual(len([f for f in route['features'] if f['properties']['layer'] == 'waypoint']), 4)
+        self.assertGreater(meta['totals']['byClassM']['steps'], 0)
+        self.assertGreater(meta['totals']['byClassM']['road_unverified'], 0)
+        self.assertIn('공식', str(meta['uncertainty']))
 
     def test_network_references_are_complete_and_restricted_ways_stay_separate(self):
         net = json.loads((ROOT / 'public/data/haeundae/walking-network.json').read_text(encoding='utf-8'))

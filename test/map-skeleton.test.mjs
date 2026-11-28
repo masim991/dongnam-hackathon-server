@@ -40,13 +40,13 @@ function boot({ bridge, search = "", styleStatus = 200, courses = [], get } = {}
     addLayer() {}
     getStyle() { return { layers: [] }; }
     getSource(id) { return this.sources.get(id); }
-    fitBounds() {}
+    fitBounds(bounds, options) { this.lastFit = { bounds, options }; }
     setLayoutProperty() {}
   }
-  class BoundsStub { extend() {} isEmpty() { return false; } }
+  class BoundsStub { points = []; extend(p) { this.points.push(p); } isEmpty() { return !this.points.length; } }
   const window = { innerWidth: 1024, AndroidHealth: bridge };
   const context = vm.createContext({
-    window, document, location: { search }, URLSearchParams, CONFIG, THEME, indexSlopes, matchSlopes,
+    window, document, location: { search }, URL, URLSearchParams, CONFIG, THEME, indexSlopes, matchSlopes,
     applyTheme: () => applyTheme(document.documentElement),
     maplibregl: { Map: MapStub, LngLatBounds: BoundsStub },
     get map() { return window.map; },
@@ -247,4 +247,59 @@ test("refined HD courses retain baseline signal counts and exclude unverified ro
   assert.match(app.elements.info.textContent, /신호 횡단보도 8곳/);
   assert.match(app.elements.detail.children.map((e) => e.textContent).join(" "), /경로 보완 전 집계/);
   assert.equal(app.window.map.getSource("courseSlope").data.features.length, 0);
+});
+
+test("whole-course framing excludes archives and leaves the panel clear on desktop and mobile", async (t) => {
+  const course = { code: 'GM-8-2', name: '전체 경로', kind: 'official', length_m: 100, geojson: '/frame.geojson', note: '공식 원본', crossings: [] };
+  const active = path(0, 100, { layer: 'course' });
+  const fc = { type: 'FeatureCollection', features: [active, path(1000, 2000, { layer: 'archive' })] };
+  const app = boot({ courses: [course], get: (url) => url === '/frame.geojson' ? Response.json(fc) : undefined });
+  t.after(app.close); await flush(); app.loadMap();
+  app.elements.panel.getBoundingClientRect = () => ({ right: 328 });
+  app.elements.list.children[0].handlers.click(); await flush();
+  const fit = app.window.map.lastFit;
+  assert.equal(fit.options.padding.left, 352);
+  assert.equal(fit.options.retainPadding, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(fit.bounds.points)), active.geometry.coordinates);
+  app.window.innerWidth = 390; app.window.innerHeight = 844;
+  app.elements.fitCourse.handlers.click();
+  assert.equal(app.window.map.lastFit.options.padding.bottom, 421);
+});
+
+test("road centreline references do not produce pedestrian slope or signal conclusions", async (t) => {
+  const course = { code: 'HD-ROAD', name: '차도 참고', kind: 'road_proxy', length_m: 100, geojson: '/road.geojson', crossings: [], unique_crossings: 11, buffer_m: 20 };
+  const fc = { type: 'FeatureCollection', metadata: { geometryRole: 'road_centerline' }, features: [path(0, 100, { layer: 'course', roadAccessUnverified: true })] };
+  const app = boot({ courses: [course], get: (url) => url === '/road.geojson' ? Response.json(fc) : undefined });
+  t.after(app.close); await flush(); app.loadMap();
+  app.elements.list.children[0].handlers.click(); await flush();
+  assert.match(app.elements.detail.textContent, /차도 중심선 참고/);
+  assert.equal(app.window.map.getSource('courseSlope').data.features.length, 0);
+  assert.equal(app.window.map.getSource('courseCtrl').data.features.length, 0);
+});
+
+test("course evidence distinguishes read sources from search-only material and skips unsafe links", async (t) => {
+  const course = { code: 'HD-EVIDENCE', name: '근거 코스', kind: 'trail', length_m: 100, geojson: '/evidence.geojson', crossings: [], unique_crossings: 0, buffer_m: 20 };
+  const report = { courses: [{ code: course.code, coverageLabel: '부분 길', summary: '공식 전체 선형이 아닙니다.', metrics: { components: 3 }, findings: ['전체 GPX 확보 필요'], sources: [
+    { url: 'https://www.busan.go.kr/galmaetgil/tour0802', title: '공식 코스 원문', readStatus: 'read' },
+    { url: 'javascript:alert(1)', title: '위험 링크', readStatus: 'read' },
+    { url: 'https://example.com', title: '검색 요약만 확인', readStatus: 'search_only' },
+  ] }] };
+  const app = boot({ courses: [course], get: (url) => url === '/data/haeundae/course-review.json' ? Response.json(report) : url === '/evidence.geojson' ? Response.json({ type: 'FeatureCollection', features: [path(0, 100, { layer: 'course' })] }) : undefined });
+  t.after(app.close); await flush(); app.loadMap();
+  app.elements.list.children[0].handlers.click(); await flush();
+  const children = app.elements.courseEvidence.children;
+  assert.equal(app.elements.courseEvidence.hidden, false);
+  assert.equal(children.filter((e) => e.href).length, 1);
+  assert.ok(children.some((e) => /3개 묶음/.test(e.textContent)));
+  assert.ok(children.some((e) => /공식 전체 선형이 아닙니다/.test(e.textContent)));
+});
+
+test('a complete HD reference without new crossing analysis never prints null or zero crossing counts', async (t) => {
+  const course = { code: 'HD-SUYEONG', name: '수영강 동편', kind: 'riverside', length_m: 7342, geojson: '/river.geojson', note: '공식 GPX 전체 선형', unique_crossings: null, crossings: [] };
+  const app = boot({ courses: [course], get: (url) => url === '/river.geojson' ? Response.json({ type: 'FeatureCollection', metadata: { trafficCoverage: 'not_analyzed' }, features: [path(0, 100, { layer: 'course' })] }) : undefined });
+  t.after(app.close); await flush(); app.loadMap();
+  app.elements.list.children[0].handlers.click(); await flush();
+  assert.match(app.elements.info.textContent, /공식 GPX 전체/);
+  assert.doesNotMatch(app.elements.info.textContent, /null|undefined|횡단보도 0곳/);
+  assert.match(app.elements.detail.children.map((e) => e.textContent).join(' '), /아직 분석하지 않았/);
 });

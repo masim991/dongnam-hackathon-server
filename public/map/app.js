@@ -69,10 +69,11 @@ function initCourses() {
     paint: { 'circle-radius': 4, 'circle-color': THEME.crosswalk, 'circle-opacity': 0.55, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
   map.addLayer({ id: 'course-line', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['!=', ['get', 'highway'], 'gap_bridge'], ['!=', ['get', 'highway'], 'closed_reference'], ['!=', ['get', 'highway'], 'detour_candidate'], ['!=', ['get', 'roadAccessUnverified'], true]],
     layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': THEME.course, 'line-width': 4 } }, labelLayer);
-  map.addLayer({ id: 'course-unverified', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['==', ['get', 'highway'], 'network_connector'], ['==', ['get', 'roadAccessUnverified'], true]],
+  map.addLayer({ id: 'course-unverified', type: 'line', source: 'course', filter: ['all', ['==', ['get', 'layer'], 'course'], ['==', ['get', 'roadAccessUnverified'], true]],
     paint: { 'line-color': THEME.bridge, 'line-width': 3.5, 'line-dasharray': [2, 1.5] } }, labelLayer);
   map.on('click', 'course-unverified', (e) => {
-    new maplibregl.Popup().setLngLat(e.lngLat).setText('OSM 원본 도로를 따라 복원한 연결 · 보행 가능 여부는 현장 미확인입니다.').addTo(map);
+    const connector = e.features[0].properties.highway === 'network_connector';
+    new maplibregl.Popup().setLngLat(e.lngLat).setText(connector ? 'OSM 원본 도로를 따라 복원한 연결 · 보행 가능 여부는 현장 미확인입니다.' : 'OSM 차도·서비스도로 참고 선형 · 보행 가능 여부는 현장 미확인입니다.').addTo(map);
   });
   map.addLayer({ id: 'course-closed', type: 'line', source: 'course', filter: ['==', ['get', 'highway'], 'closed_reference'],
     paint: { 'line-color': THEME.nearby, 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.7 } }, labelLayer);
@@ -105,7 +106,7 @@ function initCourses() {
   map.addLayer({ id: 'course-osm', type: 'circle', source: 'course', filter: ['==', ['get', 'layer'], 'osm'],
     paint: { 'circle-radius': 5, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5,
       'circle-color': ['match', ['get', 'kind'], 'signal', THEME.osmSignal, 'signal_junction', THEME.osmSignal, THEME.osmOther] } });
-  map.addLayer({ id: 'course-entrance', type: 'circle', source: 'course', filter: ['==', ['get', 'layer'], 'entrance'],
+  map.addLayer({ id: 'course-entrance', type: 'circle', source: 'course', filter: ['in', ['get', 'layer'], ['literal', ['entrance', 'waypoint']]],
     paint: { 'circle-radius': 7, 'circle-color': THEME.white, 'circle-stroke-color': THEME.ink, 'circle-stroke-width': 2.5 } });
   map.addLayer({ id: 'course-signal', type: 'circle', source: 'course', filter: ['==', ['get', 'layer'], 'signal'],
     paint: { 'circle-radius': 6, 'circle-color': THEME.crosswalk, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
@@ -122,6 +123,10 @@ function initCourses() {
   });
   map.on('click', 'course-entrance', (e) => {
     const p = e.features[0].properties;
+    if (p.layer === 'waypoint') {
+      new maplibregl.Popup().setLngLat(e.lngLat).setText(p.name + ' · ' + (p.confidence === 'high' ? '공식 이름을 OSM 경로에 대응한 지점' : '위치·명칭 추정') + ' · 현장 미검증').addTo(map);
+      return;
+    }
     const km = (v) => (v === null || v === 'null' ? '정보 없음' : v + 'm');
     new maplibregl.Popup().setLngLat(e.lngLat)
       .setText('출입구 ' + p.seq + ' · 가장 가까운 공공 신호 횡단보도 ' + km(p.nearestSignalM) + ' · OSM 횡단 ' + km(p.nearestOsmM) + (p.nearestOsmKind && p.nearestOsmKind !== 'null' ? '(' + (OSM_KIND_LABEL[p.nearestOsmKind] || p.nearestOsmKind) + ')' : '')).addTo(map);
@@ -145,6 +150,8 @@ function initCourses() {
   $('lyTrails').addEventListener('change', loadTrailsInView);
   $('lyNetwork').addEventListener('change', loadNetwork);
   map.on('click', 'hd-network', (e) => {
+    // 경유점 아래의 배경 길까지 함께 눌려 안내 팝업이 겹치지 않게 한다.
+    if (map.queryRenderedFeatures(e.point, { layers: ['course-entrance'] }).length) return;
     const p = e.features[0].properties;
     new maplibregl.Popup().setLngLat(e.lngLat).setText((p.name || '이름 없는 길') + ' · ' + p.highway + ' · ' + (p.walk === 'yes' ? 'OSM 보행로 분류(현장 미확인)' : '도로 · 보행 가능 여부 미확인') + ' · 원본 노드·좌표 보존').addTo(map);
   });
@@ -155,6 +162,7 @@ function initCourses() {
     new maplibregl.Popup().setLngLat(e.lngLat).setText('경사 크기 ' + Number(p.grade).toFixed(1) + '% · ' + Number(p.len).toFixed(0) + 'm · ' + (id === 'slope' ? '산책로 선형 정합 추정' : '주변 원본 구간, 같은 길 확인 안 됨') + ' (30m DEM 추정)').addTo(map);
   });
   $('lyIssues').addEventListener('change', toggleIssues);
+  $('fitCourse').addEventListener('click', () => { if (selectedCourseData) fitWholeCourse(selectedCourseData); });
   // 타일 로딩 전에 선택한 옵션도 지도 준비 후 적용한다.
   if ($('lyTrails').checked) loadTrailsInView();
   if ($('lyNetwork').checked) loadNetwork();
@@ -502,6 +510,10 @@ async function showCourseDetail(fc, selection) {
   const map = window.map;
   map.getSource('courseSlope').setData(EMPTY); map.getSource('courseCtrl').setData(EMPTY);
   box.textContent = '';
+  if (fc.metadata?.geometryRole === 'road_centerline') {
+    box.textContent = '차도 중심선 참고 자료입니다. 보행 경로의 위치·경사·신호 개수로 해석하지 마세요. 기존 횡단보도 집계는 차도 주변 자료이며 보도 코스는 별도 확인이 필요합니다.';
+    return;
+  }
   if (!lines.length) return;
   let ctx;
   try { ctx = await loadContext(); } catch { return; }
@@ -527,7 +539,7 @@ async function showCourseDetail(fc, selection) {
   }
   if (fc.metadata?.trafficCoverage === 'not_analyzed') {
     add('h2', '신호·횡단 정보');
-    add('p', '이 공식 트랙의 횡단보도·신호 개수는 아직 분석하지 않았습니다. 정보 없음은 신호 없음이라는 뜻이 아닙니다. 경사 자료도 해운대 일부 구간에 한정됩니다.');
+    add('p', '이 경로의 횡단보도·신호 개수는 아직 분석하지 않았습니다. 정보 없음은 신호 없음이라는 뜻이 아닙니다. 경사 자료도 해운대 일부 구간에 한정됩니다.');
   } else {
     if (fc.metadata?.trafficCoverage === 'baseline_before_repair') add('p', '횡단보도 수는 경로 보완 전 집계입니다. 추가 연결로의 신호는 아직 반영하지 않았습니다.');
     add('h2', '신호 (신호제어기 ' + CS_SIGNAL_M + 'm 이내 · 횡단보도 ' + 20 + 'm 이내)');
@@ -550,26 +562,54 @@ async function showCourseDetail(fc, selection) {
 const ISSUE_LABEL_TXT = { roundabout_loop: '회전교차로 고리', gap: '끊김', crossing_without_node: '교차(노드 없음)', t_without_node: 'T자(노드 없음)', overlap: '겹침' };
 const STATUS_LABEL_TXT = { arc_replaced: '지나가는 호만 표시', bridged: '점선 연결선으로 이음', flagged: '표시만(자동 수정 안 함)' };
 
-let courseSelection = 0;
+let courseSelection = 0, selectedCourseData = null, courseReviewPromise;
+function fitWholeCourse(fc) {
+  const bounds = new maplibregl.LngLatBounds();
+  for (const f of fc.features) {
+    if (f.properties.layer !== 'course' || f.geometry.type !== 'LineString') continue;
+    for (const p of f.geometry.coordinates) bounds.extend(p);
+  }
+  const panel = $('panel').getBoundingClientRect?.();
+  const padding = window.innerWidth <= 600
+    ? { top: 24, right: 24, bottom: Math.ceil((window.innerHeight || 800) * 0.46) + 32, left: 24 }
+    : { top: 24, right: 24, bottom: 24, left: Math.ceil(panel?.right || 328) + 24 };
+  if (!bounds.isEmpty()) window.map.fitBounds(bounds, { padding, maxZoom: 17, retainPadding: false });
+}
+async function showCourseEvidence(code, selection) {
+  const box = $('courseEvidence'); box.hidden = true; box.textContent = '';
+  try {
+    courseReviewPromise ??= getJson('/data/haeundae/course-review.json').catch((error) => { courseReviewPromise = undefined; throw error; });
+    const review = (await courseReviewPromise).courses.find((c) => c.code === code);
+    if (!review || selection !== courseSelection) return;
+    const add = (tag, text) => { const el = document.createElement(tag); el.textContent = text; box.appendChild(el); return el; };
+    add('h2', '근거와 코스 범위'); add('p', review.coverageLabel + ' · ' + review.summary);
+    if (review.metrics.components > 1) add('p', '현재 선형은 ' + review.metrics.components + '개 묶음으로 나뉩니다. 묶음 사이를 임의로 잇지 않았습니다.');
+    for (const finding of review.findings) add('p', finding);
+    for (const source of review.sources.filter((s) => s.readStatus === 'read')) {
+      const url = new URL(source.url); if (url.protocol !== 'https:') continue;
+      const link = add('a', source.title); link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; add('br', '');
+    }
+    box.hidden = false;
+  } catch { if (selection === courseSelection) { box.hidden = false; box.textContent = '근거 자료를 불러오지 못했습니다. 코스를 다시 선택해 주세요.'; } }
+}
 async function selectCourse(c, button) {
   const selection = ++courseSelection;
   for (const b of $('list').children) b.setAttribute('aria-pressed', String(b === button));
   const info = $('info');
   info.textContent = '불러오는 중…';
+  $('fitCourse').disabled = true; $('courseEvidence').hidden = true;
   try {
     const fc = await getJson(c.geojson || '/api/courses/' + encodeURIComponent(c.code) + '/geojson');
     if (selection !== courseSelection) return;
     const map = window.map;
     map.getSource('course').setData(fc);
-    const bounds = new maplibregl.LngLatBounds();
-    for (const f of fc.features) {
-      const coords = f.geometry.type === 'LineString' ? f.geometry.coordinates : [f.geometry.coordinates];
-      for (const p of coords) bounds.extend(p);
-    }
+    selectedCourseData = fc; $('fitCourse').disabled = false;
+    showCourseEvidence(c.code, selection);
     showCourseDetail(fc, selection).catch(() => { if (selection === courseSelection) $('detail').textContent = '상세 정보를 불러오지 못했습니다. 코스를 다시 선택하세요.'; });
-    if (window.innerWidth <= 600 || c.kind === 'official') $('coursebox').open = false; // 공식 트랙의 통제 안내가 긴 목록 아래 가려지지 않게 한다.
-    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 60, maxZoom: 17 });
-    if (c.kind === 'official') {
+    $('coursebox').open = false; // 긴 목록을 접어 선택한 경로와 근거를 먼저 보여 준다.
+    $('fitCourse').focus?.({ preventScroll: true });
+    fitWholeCourse(fc);
+    if (c.kind === 'official' || fc.metadata?.trafficCoverage === 'not_analyzed') {
       info.textContent = c.note + (c.alert ? ' ' + c.alert : '');
       for (const [label, href] of [['공식 원본', c.sourceUrl], ['공사·우회 공지', c.noticeUrl]]) {
         if (!href) continue;
