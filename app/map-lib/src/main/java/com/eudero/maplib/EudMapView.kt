@@ -41,7 +41,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     private val recenter: android.widget.ImageView
     private val lockBtn: android.widget.ImageView
     /** 시점 잠금: 잠그면 내 위치를 따라가며 가는 방향이 위, 열면 지도를 마음대로 움직여도 그대로 유지 */
-    var followLock = true; private set
+    var followLock = false; private set
     var onLockChanged: ((Boolean) -> Unit)? = null
     private var navBearing = 0f
 
@@ -68,6 +68,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
                 val km = kakao.kakaoMap
                 if (km != null && kov == null) {
                     kov = KakaoOverlays(km, ctx, resources.displayMetrics.density, courseOverlay, pinOverlay, layerOverlay) { kakao.read()?.get(2) }.also {
+                        it.onBackgroundTap = { onMapTap?.invoke() == true }
                         it.onPinTap = { p -> pinOverlay.onPinTap?.invoke(p) }
                         it.onCourseTap = { c -> courseOverlay.onCourseTap?.invoke(c) }
                     }
@@ -85,11 +86,11 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         addView(recenter, LayoutParams(dp(48f).toInt(), dp(48f).toInt(), Gravity.BOTTOM or Gravity.END).also { it.setMargins(0, 0, dp(13f).toInt(), dp(14f).toInt()) })
         lockBtn = android.widget.ImageView(ctx).apply {
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER; setPadding(dp(9f).toInt(), dp(9f).toInt(), dp(9f).toInt(), dp(9f).toInt()); visibility = GONE
-            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0xDD3A4250.toInt(), 0xDD12151A.toInt())).apply { shape = GradientDrawable.OVAL; setStroke(dp(1.2f).toInt(), 0x66FFFFFF) }
-            elevation = dp(4f); setImageBitmap(LockIcons.draw(128, true))
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(ACCENT) }
+            contentDescription = "내 위치 고정하기"; elevation = dp(4f); setImageBitmap(LockIcons.draw(128, false))
             setOnClickListener { setFollowLock(!followLock) }
         }
-        addView(lockBtn, LayoutParams(dp(46f).toInt(), dp(46f).toInt(), Gravity.BOTTOM or Gravity.END).also { it.setMargins(0, 0, dp(14f).toInt(), dp(14f + 56f).toInt()) })
+        addView(lockBtn, LayoutParams(dp(48f).toInt(), dp(48f).toInt(), Gravity.BOTTOM or Gravity.END).also { it.setMargins(0, 0, dp(14f).toInt(), dp(14f + 56f).toInt()) })
         wheel = WheelView(ctx).apply {
             visibility = GONE
             items = listOf(
@@ -241,7 +242,6 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     fun moveToPoint(lat: Double, lon: Double, level: Int, animMs: Int = 600) { kakao.moveTo(lat, lon, level, 0.0, animMs) }
 
     private var downX = 0f; private var downY = 0f
-    private var tapCandidate = false
     private val slop by lazy { android.view.ViewConfiguration.get(context).scaledTouchSlop.toFloat() }
     private val longPress = Runnable {
         if (kakao.kakaoMap != null) startWheel(downX, downY)
@@ -260,27 +260,15 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
                 MotionEvent.ACTION_DOWN -> {
                     downX = ev.x
                     downY = ev.y
-                    tapCandidate = true
                     postDelayed(longPress, 480)
                 }
                 MotionEvent.ACTION_MOVE -> if (kotlin.math.hypot(ev.x - downX, ev.y - downY) > slop) {
-                    tapCandidate = false
                     removeCallbacks(longPress)
                 }
                 MotionEvent.ACTION_UP -> {
                     removeCallbacks(longPress)
-                    val tap = tapCandidate && kotlin.math.hypot(ev.x - downX, ev.y - downY) <= slop
-                    tapCandidate = false
-                    if (tap && onMapTap?.invoke() == true) {
-                        val cancel = MotionEvent.obtain(ev)
-                        cancel.action = MotionEvent.ACTION_CANCEL
-                        super.dispatchTouchEvent(cancel)
-                        cancel.recycle()
-                        return true
-                    }
                 }
                 else -> {
-                    tapCandidate = false
                     removeCallbacks(longPress)
                 }
             }
@@ -369,22 +357,38 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         layerOverlay.segs = segs; layerOverlay.dots = dots; layerOverlay.showSlope = on   // 미리보기에서만 켠다
     }
 
+    fun previewJoin(approach: List<GeoPoint>, entry: GeoPoint) {
+        kEntry = entry
+        kov?.setGuideEntry(entry)
+        line(approach, 0xFF0285AF.toInt(), 19f, "approach")
+        if (approach.size >= 2) startFlow(approach)
+    }
+
+    fun showCourseArrows(path: List<GeoPoint>) = startFlow(path)
+
+    fun frameSelection(points: List<GeoPoint>, cover: Int, animate: Boolean) {
+        if (points.isEmpty()) return
+        kakao.fitBounds(points.minOf { it.latitude }, points.maxOf { it.latitude },
+            points.minOf { it.longitude }, points.maxOf { it.longitude },
+            dp(40f).toInt(), cover, animate)
+    }
+
     /** 안내 경로: 합류길까지(approach)는 흰색, 남은 코스(course)는 선택한 길의 노선색. 위로 신호등·횡단보도, 맨 위에 흐르는 화살표 */
-    fun setGuide(approach: List<GeoPoint>, course: List<GeoPoint>, extraSouth: Double = 0.0, animate: Boolean = true, entry: GeoPoint? = null) {
-        line(approach, Color.WHITE, 16f, "approach")
+    fun setGuide(approach: List<GeoPoint>, course: List<GeoPoint>, origin: GeoPoint, cover: Int, entry: GeoPoint? = null) {
+        line(approach, 0xFF0285AF.toInt(), 19f, "approach")
         line(course, courseOverlay.selected?.lineColor ?: ROUTE, 20f, "guide")
-        val all = approach + course
-        setFocus(true); startFlow(all)
-        // 미리 보기: 최대한 축소해서 내 위치부터 합류길, 종점까지 길 전체가 한눈에 보이게
-        if (all.size >= 2) kakao.fitBounds(all.minOf { it.latitude }, all.maxOf { it.latitude }, all.minOf { it.longitude }, all.maxOf { it.longitude }, dp(36f).toInt(), dp(bottomInsetDp + 20f).toInt(), animate)
+        setFocus(true)
+        startFlow(approach.dropLast(1) + course)
+        val visiblePath = if (entry == null) course else approach + entry
+        frameSelection(listOf(origin) + visiblePath, cover, false)
         kFlag = course.lastOrNull(); kov?.setEndFlag(kFlag?.latitude, kFlag?.longitude)
         kEntry = entry; kov?.setGuideEntry(entry)
     }
     fun updateApproach(approach: List<GeoPoint>, course: List<GeoPoint>) {
-        line(approach, Color.WHITE, 16f, "approach")
+        line(approach, 0xFF0285AF.toInt(), 19f, "approach")
         startFlow(approach.dropLast(1) + course)
     }
-    fun clearGuide() { kFlag = null; kEntry = null; kov?.setEndFlag(null, null); kov?.setGuideEntry(null); line(emptyList(), ROUTE, 0f, "guide"); line(emptyList(), Color.WHITE, 0f, "approach"); setFocus(false); stopFlow() }
+    fun clearGuide() { kakao.clearFitPadding(); kFlag = null; kEntry = null; kov?.setEndFlag(null, null); kov?.setGuideEntry(null); line(emptyList(), ROUTE, 0f, "guide"); line(emptyList(), Color.WHITE, 0f, "approach"); setFocus(false); stopFlow() }
 
     /** The guide is drawn above the background courses. */
     private fun setFocus(on: Boolean) { courseOverlay.guiding = on }
@@ -393,11 +397,13 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     private fun stopFlow() { kFlowState = emptyList(); kov?.setFlow(emptyList()) }
     val hasGuide get() = kLineState.containsKey("guide")
 
-    fun setLockVisible(v: Boolean) { lockBtn.visibility = if (v) VISIBLE else GONE; if (v) setFollowLock(true) }
+    fun setLockVisible(v: Boolean) { lockBtn.visibility = if (v) VISIBLE else GONE }
     /** 내 위치로 돌아가기 버튼 보이기/숨기기(길 안내 창이 열려 있을 땐 숨김). */
     fun setRecenterVisible(v: Boolean) { recenter.visibility = if (v && !navActive) VISIBLE else GONE }
     fun setFollowLock(on: Boolean) {
         followLock = on
+        lockBtn.contentDescription = if (on) "내 위치 고정 풀기" else "내 위치 고정하기"
+        lockBtn.isSelected = on
         kakao.lockPan(navActive && on)
         if (navActive && on) navMe?.let { navTo(it, navBearing) }
         lockBtn.setImageBitmap(LockIcons.draw(128, on))
@@ -408,6 +414,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     /** 내비게이션 모드: 내 위치를 화면 가운데 두고 사용자가 정한 줌과 회전을 유지하며 따라간다 */
     var navActive = false; private set
     fun setNav(on: Boolean) {
+        kakao.clearFitPadding()
         navActive = on
         if (on && resumed) startCompass() else if (!on) { stopCompass(); heading = null; kov?.updateHeading(0.0, 0.0, null) }
         recenter.visibility = if (on) GONE else VISIBLE

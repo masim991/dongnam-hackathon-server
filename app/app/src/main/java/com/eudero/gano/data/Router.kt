@@ -23,6 +23,11 @@ internal fun project(point: GeoPoint, start: GeoPoint, end: GeoPoint, longitudeS
     )
 }
 
+internal fun nearGuide(point: GeoPoint, path: List<GeoPoint>, meters: Double): Boolean {
+    val scale = cos(Math.toRadians(point.latitude))
+    return (1 until path.size).any { i -> project(point, path[i - 1], path[i], scale).offsetM <= meters }
+}
+
 object Router {
     class Approach(val targetIndex: Int, val points: List<GeoPoint>)
 
@@ -65,7 +70,7 @@ object Router {
         builtFor = roads
     }
 
-    private fun nearby(point: GeoPoint, maxOffsetM: Double): List<Snap> {
+    private fun nearby(point: GeoPoint, maxOffsetM: Double, alternateM: Double): List<Snap> {
         val scale = cos(Math.toRadians(point.latitude))
         val latMargin = maxOffsetM / 111195.0
         val lonMargin = latMargin / scale
@@ -82,17 +87,17 @@ object Router {
         }
         if (candidates.isEmpty()) return emptyList()
         val closest = candidates.minOf { it.projection.offsetM }
-        return candidates.filter { it.projection.offsetM <= closest + 1.5 }
+        return candidates.filter { it.projection.offsetM <= closest + alternateM }
             .sortedBy { it.projection.offsetM }.take(6)
     }
 
     /** 한 번의 탐색으로 주변 합류점들을 비교한다. 연결되지 않은 구간에는 안내선을 그리지 않는다. */
-    @Synchronized fun approach(roads: List<Road>, from: GeoPoint, targets: List<GeoPoint>): Approach? {
+    @Synchronized fun approach(roads: List<Road>, from: GeoPoint, targets: List<GeoPoint>, alternateM: Double = 1.5): Approach? {
         if (roads.isEmpty()) return null
         build(roads)
-        val origins = nearby(from, 30.0)
+        val origins = nearby(from, 30.0, alternateM)
         if (origins.isEmpty()) return null
-        val destinations = targets.map { nearby(it, 15.0) }
+        val destinations = targets.map { nearby(it, 15.0, alternateM) }
         if (destinations.all { it.isEmpty() }) return null
 
         val distances = DoubleArray(nodes.size) { Double.POSITIVE_INFINITY }

@@ -101,13 +101,16 @@ class KakaoBackground(ctx: Context, key: String) : FrameLayout(ctx) {
             pendingMove = { fitBounds(minLat, maxLat, minLon, maxLon, padPx, bottomPx, animate) }
             return
         }
-        val h = maxLat - minLat; val k = if (height > 0) bottomPx.toDouble() / height else 0.0
-        val south = minLat - h * k * 1.2
-        val b = com.kakao.vectormap.LatLngBounds(com.kakao.vectormap.LatLng.from(south, minLon), com.kakao.vectormap.LatLng.from(maxLat, maxLon))
+        // Reserve the sheet's actual pixels, including for nearly east-west paths.
+        val bottom = bottomPx.coerceIn(0, (height - 2 * padPx - 60).coerceAtLeast(0))
+        m.setPadding(0, 0, 0, bottom)
+        val b = com.kakao.vectormap.LatLngBounds(com.kakao.vectormap.LatLng.from(minLat, minLon), com.kakao.vectormap.LatLng.from(maxLat, maxLon))
         val update = CameraUpdateFactory.fitMapPoints(b, padPx)
         if (animate) m.moveCamera(update, com.kakao.vectormap.camera.CameraAnimation.from(350))
         else m.moveCamera(update)
     }
+
+    fun clearFitPadding() { kmap?.setPadding(0, 0, 0, 0) }
 
     fun drawRecordedTrack(points: List<GeoPoint>) {
         val map = kmap ?: return

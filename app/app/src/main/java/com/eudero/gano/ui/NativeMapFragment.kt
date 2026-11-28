@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
@@ -51,6 +52,8 @@ class NativeMapFragment : Fragment() {
     private var guideCover = 0
     private var guideRequest = 0
     private var planning = false
+    private var previewPlan: kotlinx.coroutines.Deferred<Plan?>? = null
+    private var previewOrigin: GeoPoint? = null
     private lateinit var banner: TextView
     private lateinit var mapStatus: TextView
     private var healthSteps: Long? = null
@@ -62,6 +65,20 @@ class NativeMapFragment : Fragment() {
     private val runListener: () -> Unit = { onRunChanged() }
     private val d get() = resources.displayMetrics.density
     private fun dp(v: Int) = (v * d).toInt()
+    private var allPins = emptyList<Pin>()
+    private var warningPaths: List<List<GeoPoint>>? = null
+    private fun updateVisiblePins() {
+        val paths = warningPaths
+        map?.pinOverlay?.pins = if (paths == null) allPins else allPins.filter { pin ->
+            pin.warn && paths.any { path -> nearGuide(GeoPoint(pin.lat, pin.lon), path, 100.0) }
+        }.map { pin -> if (pin.kind == 3) pin else Pin(pin.id, pin.lat, pin.lon, true, pin.payload, 3, null) }
+    }
+
+    private fun showWarnings(paths: List<List<GeoPoint>>?) {
+        warningPaths = paths
+        updateVisiblePins()
+    }
+
     private var displayedPosts: List<Post>? = null
     private val avatarCache = HashMap<String, Bitmap?>()
     private val locPerm = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
@@ -99,12 +116,19 @@ class NativeMapFragment : Fragment() {
 
         card = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(16), dp(18), dp(16)); visibility = View.GONE; elevation = 12 * d; Glass.apply(this, 22f, 0xD0) }
         // 처음 로딩: 형광 연두 + 가운데 아이콘 + 정보를 불러오는 중 (n/4)
-        loadingText = TextView(ctx).apply { textSize = 15f; setTextColor(0xFF0D0F13.toInt()); gravity = Gravity.CENTER; typeface = Fonts.bold }
+        loadingText = TextView(ctx).apply { textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Fonts.bold }
         loading = FrameLayout(ctx).apply {
-            setBackgroundColor(ctx.getColor(R.color.brand_accent)); isClickable = true; elevation = dp(24).toFloat()
+            setBackgroundColor(0xFF111418.toInt()); isClickable = true; elevation = dp(24).toFloat()
             val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-            col.addView(ImageView(ctx).apply { setImageResource(R.drawable.brand_logo); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(190), dp(150)))
-            col.addView(ImageView(ctx).apply { setImageResource(R.drawable.wordmark); scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(250), dp(85)).also { it.topMargin = dp(4) })
+            col.addView(ImageView(ctx).apply {
+                setImageResource(R.drawable.brand_logo)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(28).toFloat()
+                    setColor(ctx.getColor(R.color.brand_accent))
+                }
+            }, LinearLayout.LayoutParams(dp(112), dp(112)))
+            col.addView(ImageView(ctx).apply { setImageResource(R.drawable.wordmark); setColorFilter(Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN); contentDescription = "뛰고보자"; scaleType = ImageView.ScaleType.FIT_CENTER }, LinearLayout.LayoutParams(dp(272), dp(90)).also { it.topMargin = dp(12) })
             col.addView(loadingText, LinearLayout.LayoutParams(-2, -2).also { it.topMargin = dp(18) })
             addView(col, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         }
@@ -270,13 +294,14 @@ class NativeMapFragment : Fragment() {
         val posts = (snapshot ?: Repo.allPosts(ctx)) + demoPosts
         if (posts == displayedPosts) return
         displayedPosts = posts
-        m.pinOverlay.pins = posts.mapNotNull { p ->
+        allPins = posts.mapNotNull { p ->
             val mine = p.local || p.authorId == "p1"
             val kind = if (mine) 2 else if (p.warn) 3 else 0   // 나=흰색, 경고=빨강, 다른 사람=연두
             val face = if (kind == 0) avatarOf(ctx, p.authorId) else null
             if (kind == 0 && face == null) return@mapNotNull null
             Pin(p.id, p.lat, p.lon, p.warn, p, kind, face)
         }
+        updateVisiblePins()
     }
 
     /** 내 현재 위치: 달리는 중이면(시험 달리기 포함) 최근 기록 위치, 아니면 지도의 내 위치 */
@@ -300,6 +325,8 @@ class NativeMapFragment : Fragment() {
     }
 
     private fun closeCourse() {
+        previewPlan?.cancel(); previewPlan = null; previewOrigin = null
+        showWarnings(null)
         guideRequest++
         planning = false
         plan = null; curDir = null; nav = null; approachNav = null; guideCover = 0
@@ -313,11 +340,41 @@ class NativeMapFragment : Fragment() {
     private fun showCourse(c: Course, animate: Boolean = true) {
         val m = map ?: return; val ctx = requireContext()
         m.courseOverlay.selected = c
+        m.clearGuide()
         m.setRecenterVisible(false); mapControlsShown = false; addBubble.visibility = View.GONE; updateMapStatus()
-        m.fit(c.minLat, c.maxLat, c.minLon, c.maxLon, extraSouth = 0.8, animate = animate); m.bottomInsetDp = 280f; curDir = null
-        val crossings = CourseRepo.courseCrossings(c.code)
-        val marks = if (crossings.isEmpty()) emptyList() else CourseProfile(CourseRepo.profileFor(c), crossings).markers
-        m.setLayers(emptyList(), marks.map { it.dot }, true)
+        curDir = null
+        val lines = c.lines.map { line -> line.lat.indices.map { GeoPoint(line.lat[it], line.lon[it]) } }
+        showWarnings(lines)
+        val main = lines.maxByOrNull { it.size }.orEmpty()
+        m.showCourseArrows(main)
+        val profile = CourseProfile(CourseRepo.profileFor(c), CourseRepo.courseCrossings(c.code))
+        m.setLayers(profile.steep, profile.markers.map { it.dot }, true)
+        card.post {
+            if (m.courseOverlay.selected === c && card.isShown && curDir == null) {
+                val cover = (m.height - card.top).coerceAtLeast(0)
+                m.frameSelection(main + listOfNotNull(currentPos(m)), cover, animate)
+            }
+        }
+        previewPlan?.cancel()
+        val origin = currentPos(m)
+        previewOrigin = origin
+        previewPlan = if (origin != null && c.detail) {
+            val demo = RunState.demo
+            viewLifecycleOwner.lifecycleScope.async(Dispatchers.Default) { runCatching { GuidePlanner.plan(c, origin, demo) }.getOrNull() }
+        } else null
+        previewPlan?.let { job ->
+            viewLifecycleOwner.lifecycleScope.launch {
+                val guide = job.await() ?: return@launch
+                if (previewPlan !== job || m.courseOverlay.selected !== c || plan != null || guide.isAtEntry(guide.origin)) return@launch
+                val path = guide.dirs.first().approach
+                m.previewJoin(path, guide.entry)
+                showWarnings(lines + listOf(path))
+                card.post {
+                    if (previewPlan === job && plan == null && card.isShown)
+                        m.frameSelection(listOf(guide.origin, guide.entry) + path, m.height - card.top, false)
+                }
+            }
+        }
         card.removeAllViews()
         card.addView(Glass.backButton(ctx) { closeCourse() })
         // 코스 사진 (assets/courses/<코드>.jpg 가 있으면 카드에 보여줌)
@@ -375,41 +432,44 @@ class NativeMapFragment : Fragment() {
         if (planning) return
         planning = true
         val request = ++guideRequest
-        thread {
-            val pl = runCatching { GuidePlanner.plan(c, me, RunState.demo) }.getOrNull()
-            activity?.runOnUiThread {
-                if (map !== m || request != guideRequest) return@runOnUiThread
-                planning = false
-                if (!card.isShown || m.courseOverlay.selected !== c) return@runOnUiThread
-                if (pl == null) {
-                    Toast.makeText(ctx, "길을 불러오지 못했어요. 다시 눌러 주세요.", Toast.LENGTH_LONG).show()
-                    return@runOnUiThread
-                }
-                plan = pl
-                previewLayers(pl.dirs[0])   // 미리보기에서만: 오르막은 빨강, 주변 신호등
-                card.visibility = View.GONE; m.bottomInsetDp = 330f
-                guideCover = 0
-                m.setFollowLock(true)
-                (parentFragment as? MapHostFragment)?.showGuide(pl, {
-                    plan = null; curDir = null; RunState.simPath = null
-                    GuideNotifier.hide(ctx)
-                    m.setLayers(emptyList(), emptyList(), false); m.clearGuide()
-                    showCourse(c)
-                }, { dir ->
-                    curDir = dir
-                    nav = NavHelper(dir.coursePath)
-                    approachNav = dir.approach.takeIf { it.size >= 2 }?.let(::NavHelper)
-                    RunState.ascentM = dir.ascentM; previewLayers(dir); if (guideCover > 0) fitGuide()
-                    RunState.simPath = dir.path; RunState.courseName = "${c.name} ${dir.label}"
-                    GuideNotifier.show(ctx, "${c.name} · ${dir.label}")
-                }, { toggleRun() })
+        val prepared = previewPlan?.takeIf { (previewOrigin?.distanceToAsDouble(me) ?: Double.MAX_VALUE) < 8 }
+        val demo = RunState.demo
+        viewLifecycleOwner.lifecycleScope.launch {
+            val pl = if (prepared != null) prepared.await() else withContext(Dispatchers.Default) {
+                runCatching { GuidePlanner.plan(c, me, demo) }.getOrNull()
             }
+            if (map !== m || request != guideRequest) return@launch
+            planning = false
+            if (!card.isShown || m.courseOverlay.selected !== c) return@launch
+            if (pl == null) {
+                Toast.makeText(ctx, "길을 불러오지 못했어요. 다시 눌러 주세요.", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            plan = pl
+            previewLayers(pl.dirs[0])   // 미리보기에서만: 오르막은 빨강, 주변 신호등
+            card.visibility = View.GONE; m.bottomInsetDp = 330f
+            guideCover = 0
+            m.setFollowLock(false)
+            (parentFragment as? MapHostFragment)?.showGuide(pl, {
+                plan = null; curDir = null; RunState.simPath = null
+                GuideNotifier.hide(ctx)
+                m.setLayers(emptyList(), emptyList(), false); m.clearGuide()
+                showCourse(c)
+            }, { dir ->
+                curDir = dir
+                nav = NavHelper(dir.coursePath)
+                approachNav = dir.approach.takeIf { it.size >= 2 }?.let(::NavHelper)
+                RunState.ascentM = dir.ascentM; previewLayers(dir); if (guideCover > 0) fitGuide()
+                RunState.simPath = dir.path; RunState.courseName = "${c.name} ${dir.label}"
+                GuideNotifier.show(ctx, "${c.name} · ${dir.label}")
+            }, { toggleRun() })
         }
     }
 
     /** 미리보기 전용: 가는 길의 오르막 구간(빨강)과 주변 신호등을 지도에 겹쳐 보여준다. 달리기가 시작되면 지운다. */
     private fun previewLayers(dir: Dir) {
         val m = map ?: return
+        showWarnings(listOf(dir.path))
         m.setLayers(dir.profile.steep, dir.profile.markers.map { it.dot }, true)
     }
 
@@ -422,10 +482,10 @@ class NativeMapFragment : Fragment() {
     }
     private fun fitGuide() {
         val m = map ?: return; val dir = curDir ?: return
-        if (!m.followLock && !navOn) return   // 열림 상태: 지도를 그대로 둔다
-        val h = m.height.coerceAtLeast(1); val visible = (h - guideCover).coerceAtLeast(h / 4)
-        m.setGuide(dir.approach, dir.coursePath, extraSouth = h.toDouble() / visible - 1.0, animate = false,
-            entry = plan?.takeUnless { it.isAtEntry(it.origin) }?.entry)
+        if (navOn) return
+        val guide = plan ?: return
+        val here = currentPos(m) ?: guide.origin
+        m.setGuide(dir.approach, dir.coursePath, here, guideCover, guide.entry.takeUnless { guide.isAtEntry(here) })
     }
 
     /** 러닝이 끝나면 거리·시간·페이스·오르막·날짜와 달린 길 그림을 팝업으로 보여준다 */
@@ -482,8 +542,8 @@ class NativeMapFragment : Fragment() {
         val m = map ?: return
         updateMapStatus()
         if (RunState.running && plan != null && !navOn) {
-            navOn = true; updateMapStatus(); mapStatus.translationY = -dp(76).toFloat(); m.setNav(true); banner.visibility = View.VISIBLE
-            m.setLayers(emptyList(), curDir?.profile?.markers.orEmpty().map { it.dot }, true)
+            navOn = true; m.bottomInsetDp = 74f; updateMapStatus(); mapStatus.translationY = -dp(76).toFloat(); m.setNav(true); banner.visibility = View.VISIBLE
+            curDir?.let(::previewLayers)
             (parentFragment as? MapHostFragment)?.enterNav()
         }
         if (navOn && RunState.running) {
@@ -519,17 +579,18 @@ class NativeMapFragment : Fragment() {
         val started = RunState.startMs
         routeCheckJob = viewLifecycleOwner.lifecycleScope.launch {
             val path = withContext(Dispatchers.Default) {
-                Router.approach(CourseRepo.approachRoads.ifEmpty { CourseRepo.walkingRoads }, position, listOf(entry))?.points
+                Router.approach(CourseRepo.approachRoads.ifEmpty { CourseRepo.walkingRoads }, position, listOf(entry), alternateM = 6.0)?.points
             } ?: return@launch
             if (!RunState.running || RunState.startMs != started || curDir !== dir || RunState.pendingEntry !== entry) return@launch
             approachNav = NavHelper(path)
             map?.updateApproach(path, dir.coursePath)
+            showWarnings(listOf(path, dir.coursePath))
         }
     }
 
     private fun refreshEntry(position: GeoPoint) {
         val guide = plan ?: return
-        if (guide.approachM == 0 && !RunState.running) {
+        if (!RunState.running) {
             (parentFragment as? MapHostFragment)?.updateEntryPosition(position)
         }
     }
@@ -687,6 +748,9 @@ class NativeMapFragment : Fragment() {
         val c = stop.course
         m.courseOverlay.selected = c
         m.setRecenterVisible(false); mapControlsShown = false; addBubble.visibility = View.GONE; updateMapStatus()
+        val paths = c.lines.map { line -> line.lat.indices.map { GeoPoint(line.lat[it], line.lon[it]) } }
+        showWarnings(paths)
+        m.showCourseArrows(paths.maxByOrNull { it.size }.orEmpty())
         m.setLayers(stop.layers.segs, stop.layers.dots, true)
         m.bottomInsetDp = 246f
         m.fit(c.minLat, c.maxLat, c.minLon, c.maxLon, extraSouth = 0.8, animate = false)

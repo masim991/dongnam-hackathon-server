@@ -20,9 +20,11 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
     private val routeLayer = rl.layer!!   // 기본 레이어만 화면에 그려진다(별도 레이어는 안 보임). 겹침은 선마다 zOrder로.
     private val courseLabels = lm.addLayer(LabelLayerOptions.from("courseLabels").setZOrder(10100).setCompetitionType(CompetitionType.None).setClickable(true))!!
     private val pinLayer = lm.addLayer(LabelLayerOptions.from("pins").setZOrder(10060).setCompetitionType(CompetitionType.None).setClickable(true))!!
+    private val bubbles = lm.addLayer(LabelLayerOptions.from("postBubbles").setZOrder(10150).setCompetitionType(CompetitionType.None).setClickable(true))!!
     // The location marker must never cover another runner’s post or warning.
     private val meLayer = lm.addLayer(LabelLayerOptions.from("me").setZOrder(10050).setCompetitionType(CompetitionType.None).setClickable(false))!!
 
+    var onBackgroundTap: (() -> Boolean)? = null
     var onPinTap: ((Pin) -> Unit)? = null
     var onCourseTap: ((Course) -> Unit)? = null
 
@@ -113,7 +115,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
         else { lanes.forEach { it.line?.hide() }; laneScale = 0.0 }
         for (c in cls) {
             val sel = c.course === courseOv.selected
-            val show = courseOv.visible
+            val show = courseOv.visible && (courseOv.selected == null || sel) && !courseOv.guiding
             val dimmed = courseOv.guiding || (courseOv.selected != null && !sel)
             fun ink(color: Int) = if (dimmed) (color and 0xFFFFFF) or 0x72000000 else color
             for (ln in c.lines) {
@@ -212,7 +214,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
         val st = lineStyle(width * 0.6f, color, 3.5f, 0xFF14171C.toInt())
         if (old != null) {   // 지웠다 다시 만들면 화면에 안 뜨는 경우가 있어서, 같은 선의 좌표만 바꿔 끼운다
             runCatching { old.changeSegments(RouteLineSegment.from(pts, st)); old.show() }
-        } else addLine(routeLayer, pts, st, 3)?.let { named[key] = it }
+        } else addLine(routeLayer, pts, st, if (key == "approach") 5 else 3)?.let { named[key] = it }
     }
     // ---------- 흐르는 화살표: 길 위에 작은 각진 화살촉(라벨)을 일정 간격으로 놓고 가는 방향으로 천천히 옮긴다 ----------
     // 선 무늬(패턴)는 모서리에서 끊겨서, 라벨을 길 따라 움직이며 모서리에서는 방향을 바꿔 준다.
@@ -363,7 +365,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
         pinZoom = k.zoomLevel
         pinRotation = (k.cameraPosition?.rotationAngle?.toFloat() ?: 0f)
         pinBounce?.cancel()
-        pinLabels.forEach { pinLayer.remove(it) }
+        pinLabels.forEach { bubbles.remove(it) }
         val newKeys = mutableSetOf<Set<String>>()
         val appeared = mutableListOf<Label>()
         val labels = mutableListOf<Label>()
@@ -371,7 +373,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
         expectedPinLabels = 0
         fun add(pos: LatLng, style: LabelStyles, tag: Any, visible: Boolean = true): Label? {
             expectedPinLabels++
-            return pinLayer.addLabel(LabelOptions.from(pos).setStyles(style).setVisible(visible).setClickable(true).setTag(tag))
+            return bubbles.addLabel(LabelOptions.from(pos).setStyles(style).setVisible(visible).setClickable(true).setTag(tag))
                 ?.also { labels.add(it) }
         }
         val ownStyle = labelStyles(ownDot, 0.5f, 0.5f, EudMapView.OWN_DOT_ZOOM)
@@ -522,7 +524,9 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
                 else -> false
             }
         }
-        k.setOnMapClickListener { _, _, point, _ -> tapMap(point.x, point.y) }
+        k.setOnMapClickListener { _, _, point, _ ->
+            if (onBackgroundTap?.invoke() != true) tapMap(point.x, point.y)
+        }
     }
     /** 길을 눌렀으면 true(그 길 선택), 아니면 false. */
     private fun tapMap(x: Float, y: Float): Boolean {
@@ -546,6 +550,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
             }
         }
         for (c in cls) {
+            if (courseOv.selected != null && courseOv.selected !== c.course) continue
             if (sharedHit?.courses?.contains(c.course) == true) continue
             for (l in c.course.lines) {
                 var ax = 0f; var ay = 0f

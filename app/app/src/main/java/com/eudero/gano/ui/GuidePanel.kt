@@ -34,6 +34,23 @@ class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -
         setOnClickListener { onRun() }
     }
     private val runBtn: Button get() = runButton
+    private var here = plan.origin
+    private val joinNav = plan.dirs.first().approach.takeIf { it.size >= 2 }?.let { com.eudero.gano.data.NavHelper(it) }
+    private val fallback = TextView(ctx).apply {
+        text = "카카오맵에서 합류점까지 걷기 ↗"
+        setTextColor(0xFFB9FA03.toInt())
+        setPadding(dp(8), dp(6), dp(8), dp(6))
+        setOnClickListener {
+            val uri = android.net.Uri.parse("https://map.kakao.com/link/by/walk").buildUpon()
+                .appendPath("내 위치,${here.latitude},${here.longitude}")
+                .appendPath("합류점,${plan.entry.latitude},${plan.entry.longitude}").build()
+            try {
+                ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
+            } catch (_: android.content.ActivityNotFoundException) {
+                Toast.makeText(ctx, "링크를 열 브라우저가 필요해요", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     private val entryText = TextView(ctx).apply { textSize = 12.5f; setTextColor(0xFFB9FA03.toInt()) }
     /** 접힌 상태에서 보이는 높이: 머리글에서 코스 그래프까지 */
     var collapsedOffset = 0f
@@ -67,6 +84,7 @@ class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -
             orientation = VERTICAL
             addView(TextView(ctx).apply { text = plan.course.name; textSize = 19f; setTextColor(Color.WHITE); typeface = Fonts.bold })
             addView(entryText)
+            addView(fallback)
         }, LayoutParams(0, -2, 1f))
         addView(head)
         // 위로 끌어올리는 손잡이 + 머리글을 잡고 끌 수 있음
@@ -203,16 +221,19 @@ class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -
     }
 
     fun updateEntryPosition(position: com.eudero.maplib.GeoPoint) {
+        here = position
+        val joined = plan.isAtEntry(position)
+        fallback.visibility = if (!joined && joinNav == null) VISIBLE else GONE
         entryText.text = when {
-            plan.isAtEntry(position) -> "코스에서 바로 시작할 수 있어요"
-            plan.approachM > 0 -> "코스 합류점까지 도보 약 ${plan.approachM}m"
+            joined -> "코스에서 바로 시작할 수 있어요"
+            joinNav != null -> "합류점까지 파란 길 · ${joinNav.step(position, false).text}"
             else -> "합류점까지 직선 ${position.distanceToAsDouble(plan.entry).toInt()}m · 보행 경로 정보 없음"
         }
         refreshRun()
     }
 
     private fun refreshRun() {
-        runBtn.text = if (RunState.running) "달리기 종료  ·  ${RunState.timeStr()}  ${RunState.distStr()}" else "달리기 시작"
+        runBtn.text = if (RunState.running) "달리기 종료  ·  ${RunState.timeStr()}  ${RunState.distStr()}" else if (RunState.demo || plan.isAtEntry(here)) "달리기 시작" else "합류 안내 시작"
         (runBtn.background as GradientDrawable).setColor(if (RunState.running) 0xFFFF5252.toInt() else 0xFFB9FA03.toInt())
         runBtn.setTextColor(if (RunState.running) Color.WHITE else 0xFF0D0F13.toInt())
     }

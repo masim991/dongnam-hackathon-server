@@ -51,7 +51,7 @@ object GuidePlanner {
             } else {
                 // A riverside entrance or a crosswalk may join the course beyond the closest block.
                 val roads = CourseRepo.approachRoads.ifEmpty { CourseRepo.walkingRoads }
-                route = Router.approach(roads, me, projections.map { it.point })
+                route = Router.approach(roads, me, projections.map { it.point }, alternateM = 6.0)
                 if (route != null) segmentIndex = route.targetIndex
             }
         }
