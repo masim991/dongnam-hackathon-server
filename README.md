@@ -9,7 +9,7 @@
 | 곽태원 | Cloudflare Workers API 구축, D1 설계·운영, 횡단보도 등 공공데이터 수집 |
 | 고유민 | Android 앱·UX 개발, 기능 통합, 건강 앱 연동·배포 |
 
-[Android 앱 소스](app/) · [앱 구조도와 수정 기록](app/README.md) · [2.3 패치 내역 및 APK](https://yumin-server.duckdns.org/files/)
+[Android 앱 소스](app/) · [앱 구조도와 수정 기록](app/README.md) · [버전별 패치 내역 및 APK](https://yumin-server.duckdns.org/files/)
 
 ## 저장소 구성
 
