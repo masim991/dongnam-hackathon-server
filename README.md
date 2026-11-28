@@ -14,6 +14,7 @@
 | --- | --- |
 | 곽태원 | Cloudflare Workers API 구축, D1 설계·운영, 횡단보도 등 공공데이터 수집 |
 | 고유민 | Android 앱·UX 개발, 기능 통합, 건강 앱 연동·배포 |
+| [kanghee-eng](https://github.com/kanghee-eng) | 프론트엔드 브랜드 디자인, 앱 아이콘·로고 제작, 라이트·다크 에셋 정리 |
 
 [Android 앱 소스](app/) · [앱 구조도와 수정 기록](app/README.md) · [버전별 패치 내역 및 APK](https://yumin-server.duckdns.org/files/)
 
