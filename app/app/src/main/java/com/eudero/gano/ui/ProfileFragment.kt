@@ -108,6 +108,6 @@ class ProfileFragment : Fragment() {
         }
         tile(second, "업데이트 확인", R.drawable.ic_profile_update) { Updater.check(requireActivity(), true) }
         box.addView(Space(ctx), LinearLayout.LayoutParams(1, 0, 1f))
-        box.addView(TextView(ctx).apply { text = "버전 ${BuildConfig.VERSION_NAME}"; textSize = 13f; gravity = Gravity.CENTER; setTextColor(0xFF6E737C.toInt()); setPadding(0, dp(18), 0, 0) })
+        box.addView(TextView(ctx).apply { text = "버전 ${BuildConfig.VERSION_NAME}\n뛰고보자"; textSize = 13f; gravity = Gravity.CENTER; setTextColor(0xFF6E737C.toInt()); setPadding(0, dp(18), 0, 0) })
     }
 }

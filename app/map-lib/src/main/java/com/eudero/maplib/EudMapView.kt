@@ -108,7 +108,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
 
     /** 내 위치 핀 (흰색 유리 물방울, 프로필 얼굴). 아래쪽 뾰족한 끝이 실제 위치. */
     fun setMeMarker(face: Bitmap?) {
-        meBitmap = bubbleImage(context, face, Color.WHITE, 34)
+        meBitmap = bubbleImage(context, face, Color.WHITE, SINGLE_BUBBLE_WIDTH_DP)
     }
 
     private fun startWheel(x: Float, y: Float) {

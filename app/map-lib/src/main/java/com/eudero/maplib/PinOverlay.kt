@@ -7,6 +7,8 @@ class PinOverlay {
     var onPinTap: ((Pin) -> Unit)? = null
 }
 
+internal const val SINGLE_BUBBLE_WIDTH_DP = 48
+
 /** 한 번 합성한 이미지 한 장이 사진과 꼬리를 함께 담는다. */
 internal fun bubbleImage(context: android.content.Context, face: android.graphics.Bitmap?, color: Int,
                          widthDp: Int, warning: Boolean = false, count: Int? = null): android.graphics.Bitmap {

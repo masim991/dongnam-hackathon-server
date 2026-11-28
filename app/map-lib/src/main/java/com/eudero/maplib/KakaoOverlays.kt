@@ -21,8 +21,8 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
     private val courseLabels = lm.addLayer(LabelLayerOptions.from("courseLabels").setZOrder(10100).setCompetitionType(CompetitionType.None).setClickable(true))!!
     private val pinLayer = lm.addLayer(LabelLayerOptions.from("pins").setZOrder(10060).setCompetitionType(CompetitionType.None).setClickable(true))!!
     private val bubbles = lm.addLayer(LabelLayerOptions.from("postBubbles").setZOrder(10150).setCompetitionType(CompetitionType.None).setClickable(true))!!
-    // The location marker must never cover another runner’s post or warning.
-    private val meLayer = lm.addLayer(LabelLayerOptions.from("me").setZOrder(10050).setCompetitionType(CompetitionType.None).setClickable(false))!!
+    // Keep my live position above posts and the focused warning, without taking taps.
+    private val meLayer = lm.addLayer(LabelLayerOptions.from("me").setZOrder(10210).setCompetitionType(CompetitionType.None).setClickable(false))!!
 
     var onBackgroundTap: (() -> Boolean)? = null
     var onPinTap: ((Pin) -> Unit)? = null
@@ -309,7 +309,6 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
     private val singleStyles = mutableMapOf<Pin, LabelStyles>()
     private val groupStyles = mutableMapOf<Pair<Int, Boolean>, LabelStyles>()
     private val accent = { kind: Int -> when (kind) { 3 -> 0xFFFF4D4D.toInt(); 2 -> 0xFFFFFFFF.toInt(); else -> 0xFFB9FA03.toInt() } }
-    private val postSizeDp = 48
     private val groupSizeDp = 52
     private val ownDot by lazy {
         val size = (14 * d).toInt()
@@ -399,7 +398,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
             val pos = ll(group.map { it.lat }.average(), group.map { it.lon }.average())
             val tag: Any = if (group.size == 1) seed else PinGroup(group)
             val style = if (group.size == 1) singleStyles.getOrPut(seed) {
-                labelStyles(bubbleImage(ctx, seed.icon, accent(seed.kind), postSizeDp, seed.warn))
+                labelStyles(bubbleImage(ctx, seed.icon, accent(seed.kind), SINGLE_BUBBLE_WIDTH_DP, seed.warn))
             } else groupStyles.getOrPut(group.size to seed.warn) {
                 labelStyles(bubbleImage(ctx, null, accent(if (seed.warn) 3 else 0), groupSizeDp, warning = seed.warn, count = group.size))
             }

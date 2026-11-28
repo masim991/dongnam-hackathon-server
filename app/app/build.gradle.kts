@@ -12,8 +12,8 @@ android {
         applicationId = "com.eudero.gano"
         minSdk = 28
         targetSdk = 34
-        versionCode = 27
-        versionName = "2.5"
+        versionCode = 28
+        versionName = "2.6"
         ndk { abiFilters += listOf("arm64-v8a") }   // 벡터 지도 엔진 용량 줄이기(요즘 폰은 모두 arm64)
         buildConfigField("String", "VERSION_URL", "\"https://yumin-server.duckdns.org/files/version.json\"")
         // 지도 배경: 기본은 벡터 지도(MapLibre). -PmapBackend=kakao 로 빌드하면 카카오맵 시험판
