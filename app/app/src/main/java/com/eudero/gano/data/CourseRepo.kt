@@ -50,29 +50,35 @@ object CourseRepo {
         }.getOrElse { if (to.isFile) to.readText() else null }
     }
 
-    /** @param step 끝난 단계 수 콜백 (최대 total). 백그라운드 스레드에서 호출. */
-    fun loadAll(c: Context, force: Boolean, total: Int, step: (Int) -> Unit): Boolean {
-        val done = AtomicInteger(0); val ok = AtomicInteger(0)
-        fun fin(good: Boolean) { if (good) ok.incrementAndGet(); step(done.incrementAndGet()) }
+    private fun packaged(ctx: Context, path: String): String =
+        ctx.assets.open("haeundae/$path.gz").use { raw ->
+            java.util.zip.GZIPInputStream(raw).bufferedReader().use { it.readText() }
+        }
+
+    /** 각 데이터 묶음을 준비한 뒤 완료한 묶음 수를 알린다. */
+    fun loadAll(c: Context, force: Boolean, step: (Int) -> Unit): Boolean {
+        var routesReady = false
+        var contextReady = false
+        val done = AtomicInteger(0)
+        fun fin() { step(done.incrementAndGet()) }
         val ts = listOf(
             thread {
-                val base = runCatching { Repo.refreshOrLoad(c, force) }.getOrDefault(false)
+                runCatching { Repo.refreshOrLoad(c, force) }
                 val walked = runCatching {
                     val data = fetch("$API/data/haeundae/walking-network.json", File(dir(c), "walk_network.json"), force)
                     if (data == null) null else readWalkingRoads(data)
                 }.getOrNull()
-                if (walked != null && walked.second.isNotEmpty()) {
-                    walkingRoads = walked.first
-                    approachRoads = walked.second
-                }
-                fin(base || walkingRoads.isNotEmpty())
+                val network = walked?.takeIf { it.first.isNotEmpty() } ?: runCatching { readWalkingRoads(packaged(c, "walking-network.json")) }.getOrDefault(emptyList<Road>() to emptyList())
+                walkingRoads = network.first
+                approachRoads = network.second
+                fin()
             },
             thread {
-                fin(runCatching {
+                runCatching {
                     val cache = dir(c)
                     val refined = fetch("$API/data/haeundae/courses/index.json", File(cache, "refined_index.json"), force)
-                    val list = refined ?: fetch("$API/api/courses", File(cache, "courses.json"), force) ?: error("no courses")
-                    val arr = JSONObject(list).getJSONArray("courses")
+                    val arr = refined?.let { runCatching { JSONObject(it).getJSONArray("courses") }.getOrNull() }
+                        ?.takeIf { it.length() > 0 } ?: JSONObject(packaged(c, "courses/index.json")).getJSONArray("courses")
                     val out = arrayOfNulls<Course>(arr.length())
                     val crossings = java.util.concurrent.ConcurrentHashMap<String, List<Dot>>()
                     val paths = java.util.concurrent.ConcurrentHashMap<String, List<PP>>()
@@ -83,12 +89,18 @@ object CourseRepo {
                             val path = row.optString("geojson")
                             val updated = if (path.startsWith("/data/haeundae/courses/"))
                                 fetch(API + path, File(cache, "refined_$code.json"), force) else null
-                            val geo = updated ?: fetch("$API/api/courses/$code/geojson", File(cache, "course_$code.json"), force)
-                                ?: return@runCatching
                             val info = CourseInfo.of(code, row.getString("name"))
-                            val parts = parseLines(geo)
                             val reference = Profiles.get(c, code).filter { it.lat != 0.0 }
-                            val line = TrailGeometry.mainLine(parts, reference, code == "HD-DONGBAEK") ?: return@runCatching
+                            val closed = code == "HD-DONGBAEK"
+                            val sources = sequence {
+                                updated?.let { yield(it) }
+                                runCatching { packaged(c, "courses/$code.geojson") }.getOrNull()?.let { yield(it) }
+                                fetch("$API/api/courses/$code/geojson", File(cache, "course_$code.json"), force)?.let { yield(it) }
+                            }
+                            val (geo, line) = sources.firstNotNullOfOrNull { text ->
+                                runCatching { TrailGeometry.mainLine(parseLines(text, closed), reference, closed) }
+                                    .getOrNull()?.let { text to it }
+                            } ?: return@runCatching
                             val profile = buildProfile(line, reference)
                             val course = Course(code, info.name, info.tagline, info.badge, profile.last().d,
                                 listOf(line), row.optString("region", "부산"), true)
@@ -100,27 +112,32 @@ object CourseRepo {
                     th.forEach { it.join() }
                     crossingsByCourse = crossings.toMap()
                     pathsByCourse = paths.toMap()
-                    courses = out.filterNotNull(); courses.isNotEmpty()
-                }.getOrDefault(false))
+                    courses = out.filterNotNull()
+                    routesReady = courses.isNotEmpty() && courses.size == arr.length()
+                }
+                fin()
             },
             thread {
-                fin(runCatching {
-                    val t = fetch("$API/data/haeundae/trail-context.json", File(dir(c), "context.json"), force) ?: error("no ctx")
-                    parseContext(t); true
-                }.getOrDefault(false))
+                runCatching {
+                    val t = fetch("$API/data/haeundae/trail-context.json", File(dir(c), "context.json"), force)
+                    if (t == null || runCatching { parseContext(t) }.isFailure) parseContext(packaged(c, "trail-context.json"))
+                    contextReady = true
+                }
+                fin()
             },
             thread {
-                fin(runCatching {
+                runCatching {
                     val t = URL("$API/api/weather").openConnection().apply { connectTimeout = 6000; readTimeout = 10000 }.getInputStream().bufferedReader().use { it.readText() }
                     val s = JSONObject(t).getJSONObject("summary").getJSONObject("해운대")
-                    weatherScore = s.optInt("score", -1); weatherLabel = s.optString("label"); true
-                }.getOrDefault(false))
+                    weatherScore = s.optInt("score", -1); weatherLabel = s.optString("label")
+                }
+                fin()
             }
         )
         ts.forEach { it.join() }
         regional = runCatching { loadRegional(c) }.getOrDefault(emptyList())
         Course.assignLineColors(all)
-        return courses.isNotEmpty()
+        return routesReady && contextReady && walkingRoads.isNotEmpty()
     }
 
     /** 부울경 해운대 외 대표 길 (기기에 넣어둔 데이터). 길 표시·소개만 사용. */
@@ -133,7 +150,7 @@ object CourseRepo {
         }
     }
 
-    private fun parseLines(json: String): List<Line> {
+    private fun parseLines(json: String, closedCourse: Boolean): List<Line> {
         val feats = JSONObject(json).getJSONArray("features"); val out = ArrayList<Line>()
         for (i in 0 until feats.length()) {
             val f = feats.getJSONObject(i); if (f.optJSONObject("properties")?.optString("layer", "course") != "course") continue
@@ -144,10 +161,12 @@ object CourseRepo {
             for (p in parts) if (p.length() >= 2) {
                 val la = DoubleArray(p.length()); val lo = DoubleArray(p.length())
                 for (k in 0 until p.length()) { val q = p.getJSONArray(k); lo[k] = q.getDouble(0); la[k] = q.getDouble(1) }
-                // Exclude long connectors that merely detour between almost coincident endpoints.
-                if (props?.optBoolean("roadAccessUnverified") == true &&
+                // A mapped circular course legitimately ends at its starting point.
+                val endGap = GeoPoint(la.first(), lo.first()).distanceToAsDouble(GeoPoint(la.last(), lo.last()))
+                val fullLoop = closedCourse && la.size >= 4 && endGap <= 2.0
+                if (!fullLoop && props?.optBoolean("roadAccessUnverified") == true &&
                     props.optString("highway") == "network_connector" && props.optDouble("lengthM") > 160 &&
-                    GeoPoint(la.first(), lo.first()).distanceToAsDouble(GeoPoint(la.last(), lo.last())) * 4 < props.optDouble("lengthM")) continue
+                    endGap * 4 < props.optDouble("lengthM")) continue
                 out.add(Line(la, lo))
             }
         }

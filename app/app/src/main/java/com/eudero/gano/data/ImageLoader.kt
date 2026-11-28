@@ -11,6 +11,31 @@ import java.net.URL
 import kotlin.concurrent.thread
 
 object ImageLoader {
+    /** Small, ready-to-display image for a course card. Called off the UI thread at startup. */
+    fun thumbnail(c: Context, path: String): android.graphics.Bitmap? = runCatching {
+        fun stream(): java.io.InputStream {
+            if (path.startsWith("samples/") || path.startsWith("courses/")) return c.assets.open(path)
+            if (path.startsWith("/")) return File(path).inputStream()
+            val dir = File(c.filesDir, "cache/img").apply { mkdirs() }
+            val file = File(dir, path.replace('/', '_').replace(':', '_'))
+            if (!file.isFile) {
+                val tmp = File.createTempFile("card-", ".tmp", dir)
+                try {
+                    val conn = URL(if (path.startsWith("http")) path else BuildConfig.DATA_BASE + path).openConnection()
+                    conn.connectTimeout = 4000; conn.readTimeout = 5000
+                    conn.getInputStream().use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                    check(tmp.renameTo(file) || file.isFile)
+                } finally { tmp.delete() }
+            }
+            return file.inputStream()
+        }
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        stream().use { BitmapFactory.decodeStream(it, null, options) }
+        options.inJustDecodeBounds = false; options.inSampleSize = 1
+        while (maxOf(options.outWidth, options.outHeight) / options.inSampleSize > 720) options.inSampleSize *= 2
+        stream().use { BitmapFactory.decodeStream(it, null, options) }
+    }.getOrNull()
+
     fun load(c: Context, path: String, iv: ImageView) {
         if (path.isEmpty()) return
         thread {

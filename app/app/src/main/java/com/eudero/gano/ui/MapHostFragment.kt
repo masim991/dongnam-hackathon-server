@@ -57,7 +57,9 @@ class MapHostFragment : Fragment() {
         }
     }
 
-    fun updateEntryPosition(position: com.eudero.maplib.GeoPoint) { guide?.updateEntryPosition(position) }
+    fun updateApproach(nav: com.eudero.gano.data.NavHelper?, target: com.eudero.maplib.GeoPoint?, position: com.eudero.maplib.GeoPoint) {
+        guide?.updateApproach(nav, target, position)
+    }
 
     /** 내비게이션 모드: 안내 창은 내리고 달리기 버튼만 남긴다 */
     fun enterNav() { guide?.let { g -> g.animate().translationY(g.height.toFloat()).setDuration(260).start() } }

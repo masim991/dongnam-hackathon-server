@@ -212,9 +212,12 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
         val old = named[key]
         if (pts.size < 2 || width <= 0f) { if (old != null) { runCatching { old.hide() } } ; return }
         val st = lineStyle(width * 0.6f, color, 3.5f, 0xFF14171C.toInt())
-        if (old != null) {   // 지웠다 다시 만들면 화면에 안 뜨는 경우가 있어서, 같은 선의 좌표만 바꿔 끼운다
-            runCatching { old.changeSegments(RouteLineSegment.from(pts, st)); old.show() }
-        } else addLine(routeLayer, pts, st, if (key == "approach") 5 else 3)?.let { named[key] = it }
+        if (old != null) {
+            if (runCatching { old.changeSegments(RouteLineSegment.from(pts, st)); old.show() }.isSuccess) return
+            runCatching { old.remove() }
+            named.remove(key)
+        }
+        addLine(routeLayer, pts, st, if (key == "approach") 5 else 3)?.let { named[key] = it }
     }
     // ---------- 흐르는 화살표: 길 위에 작은 각진 화살촉(라벨)을 일정 간격으로 놓고 가는 방향으로 천천히 옮긴다 ----------
     // 선 무늬(패턴)는 모서리에서 끊겨서, 라벨을 길 따라 움직이며 모서리에서는 방향을 바꿔 준다.

@@ -12,7 +12,7 @@ android {
         applicationId = "com.eudero.gano"
         minSdk = 28
         targetSdk = 34
-        versionCode = 29
+        versionCode = 30
         versionName = "2.6"
         ndk { abiFilters += listOf("arm64-v8a") }   // 벡터 지도 엔진 용량 줄이기(요즘 폰은 모두 arm64)
         buildConfigField("String", "VERSION_URL", "\"https://yumin-server.duckdns.org/files/version.json\"")
@@ -34,6 +34,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(project(":map-lib"))
     implementation(project(":health-connect"))
     

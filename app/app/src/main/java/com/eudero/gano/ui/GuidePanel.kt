@@ -21,6 +21,17 @@ import com.eudero.gano.data.Plan
 import com.eudero.gano.data.Weather
 import com.eudero.gano.run.RunState
 
+internal fun openWalkingDirections(ctx: Context, here: com.eudero.maplib.GeoPoint, entry: com.eudero.maplib.GeoPoint) {
+    val uri = android.net.Uri.parse("https://map.kakao.com/link/by/walk").buildUpon()
+        .appendPath("내 위치,${here.latitude},${here.longitude}")
+        .appendPath("합류점,${entry.latitude},${entry.longitude}").build()
+    try {
+        ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
+    } catch (_: android.content.ActivityNotFoundException) {
+        Toast.makeText(ctx, "링크를 열 브라우저가 필요해요", Toast.LENGTH_SHORT).show()
+    }
+}
+
 /** 길 안내 창(아래 창만 보임): 방향 A/B, 이 길의 정보, 선형 경사 그래프, 날씨 안내, 달리기 시작. */
 class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -> Unit, private val onDir: (Dir) -> Unit, private val onRun: () -> Unit) : LinearLayout(ctx) {
     private val d = resources.displayMetrics.density
@@ -35,20 +46,14 @@ class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -
     }
     private val runBtn: Button get() = runButton
     private var here = plan.origin
-    private val joinNav = plan.dirs.first().approach.takeIf { it.size >= 2 }?.let { com.eudero.gano.data.NavHelper(it) }
+    private var connector = plan.connectorTarget
+    private var joinNav = plan.dirs.first().approach.takeIf { it.size >= 2 }?.let { com.eudero.gano.data.NavHelper(it) }
     private val fallback = TextView(ctx).apply {
         text = "카카오맵에서 합류점까지 걷기 ↗"
         setTextColor(0xFFB9FA03.toInt())
         setPadding(dp(8), dp(6), dp(8), dp(6))
         setOnClickListener {
-            val uri = android.net.Uri.parse("https://map.kakao.com/link/by/walk").buildUpon()
-                .appendPath("내 위치,${here.latitude},${here.longitude}")
-                .appendPath("합류점,${plan.entry.latitude},${plan.entry.longitude}").build()
-            try {
-                ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri))
-            } catch (_: android.content.ActivityNotFoundException) {
-                Toast.makeText(ctx, "링크를 열 브라우저가 필요해요", Toast.LENGTH_SHORT).show()
-            }
+            openWalkingDirections(ctx, here, plan.entry)
         }
     }
     private val entryText = TextView(ctx).apply { textSize = 12.5f; setTextColor(0xFFB9FA03.toInt()) }
@@ -114,7 +119,7 @@ class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -
         val scroll = ScrollView(ctx); val col = LinearLayout(ctx).apply { orientation = VERTICAL; setPadding(dp(18), dp(4), dp(18), dp(16)) }
         val dirRow = LinearLayout(ctx).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         if (plan.dirs.size > 1) plan.dirs.forEach { dd -> val c = chip(dd.label); dirChips.add(c); c.setOnClickListener { pick(dd) }; dirRow.addView(c, LayoutParams(-2, -2).also { it.rightMargin = dp(8) }) }
-        else dirRow.addView(TextView(ctx).apply { text = "방향 A"; textSize = 13f; setTextColor(0xFF9AA0A9.toInt()) })
+        else dirRow.addView(TextView(ctx).apply { text = dir.label; textSize = 13f; setTextColor(0xFF9AA0A9.toInt()) })
         dirRow.addView(View(ctx), LayoutParams(0, 1, 1f))
         val setBtn = chip("달리기 설정"); paint(setBtn, false); setBtn.setOnClickListener { openSettings() }
         dirRow.addView(setBtn)
@@ -220,14 +225,23 @@ class GuidePanel(ctx: Context, private val plan: Plan, private val onClose: () -
         typing = r; body.text = ""; handler.post(r)
     }
 
-    fun updateEntryPosition(position: com.eudero.maplib.GeoPoint) {
+    fun updateApproach(nav: com.eudero.gano.data.NavHelper?, target: com.eudero.maplib.GeoPoint?, position: com.eudero.maplib.GeoPoint) {
+        joinNav = nav
+        connector = target
+        updateEntryPosition(position)
+    }
+
+    private fun updateEntryPosition(position: com.eudero.maplib.GeoPoint) {
         here = position
         val joined = plan.isAtEntry(position)
+        val target = connector
+        val navigation = joinNav
         fallback.visibility = if (!joined && joinNav == null) VISIBLE else GONE
         entryText.text = when {
             joined -> "코스에서 바로 시작할 수 있어요"
-            joinNav != null -> "합류점까지 파란 길 · ${joinNav.step(position, false).text}"
-            else -> "합류점까지 직선 ${position.distanceToAsDouble(plan.entry).toInt()}m · 보행 경로 정보 없음"
+            navigation != null && target != null -> "점선은 보행로 입구 방향 · 직선 ${position.distanceToAsDouble(target).toInt()}m"
+            navigation != null -> "합류점까지 파란 길 · ${navigation.step(position, false).text}"
+            else -> "점선은 합류점 방향 · 직선 ${position.distanceToAsDouble(plan.entry).toInt()}m"
         }
         refreshRun()
     }

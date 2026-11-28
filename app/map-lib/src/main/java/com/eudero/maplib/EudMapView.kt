@@ -33,6 +33,33 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
 
     private val kakao: KakaoBackground                           // 배경: 카카오맵
     private val loc = SmoothLocationProvider(ctx)
+    private var connectorTarget: GeoPoint? = null
+    private val connectorLine = object : android.view.View(ctx) {
+        private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFF006789.toInt()
+            style = Paint.Style.STROKE
+            strokeWidth = dp(3f)
+            strokeCap = Paint.Cap.ROUND
+            pathEffect = DashPathEffect(floatArrayOf(dp(1f), dp(6f)), 0f)
+        }
+        private var start: Point? = null
+        private var end: Point? = null
+        fun endpoints(a: Point?, b: Point?) {
+            if (start == a && end == b) return
+            start = a
+            end = b
+            invalidate()
+        }
+        override fun onDraw(canvas: Canvas) {
+            val a = start ?: return
+            val b = end ?: return
+            canvas.drawLine(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat(), stroke)
+        }
+    }
+    fun setApproachConnector(target: GeoPoint?) {
+        connectorTarget = target
+        if (target == null) connectorLine.endpoints(null, null)
+    }
     private val myBubble = android.widget.ImageView(ctx).apply {
         visibility = INVISIBLE
         contentDescription = "내 위치 버블"
@@ -66,6 +93,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         pinOverlay = PinOverlay(); courseOverlay = CourseOverlay(); layerOverlay = LayerOverlay()
         kakao = KakaoBackground(ctx, kakaoKey)
         addView(kakao, LayoutParams(-1, -1))
+        addView(connectorLine, LayoutParams(-1, -1))
         addView(myBubble, LayoutParams(1, 1, Gravity.TOP or Gravity.LEFT))
         kakao.onCameraSettled = { kov?.refreshSharedLanes(); kov?.onPinZoomChanged() }
         run {
@@ -160,6 +188,10 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         kov?.let { o ->
             o.sync()
             val l = me()
+            connectorTarget?.let { target ->
+                connectorLine.endpoints(l?.let { screenPoint(it.latitude, it.longitude) },
+                    screenPoint(target.latitude, target.longitude))
+            }
             if (l != null) {
                 if (myBubble.drawable != null) screenPoint(l.latitude, l.longitude)?.let { point ->
                     myBubble.translationX = point.x - myBubble.layoutParams.width / 2f
@@ -372,7 +404,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         layerOverlay.segs = segs; layerOverlay.dots = dots; layerOverlay.showSlope = on   // 미리보기에서만 켠다
     }
 
-    fun previewJoin(approach: List<GeoPoint>, entry: GeoPoint) {
+    fun previewJoin(approach: List<GeoPoint>, entry: GeoPoint?) {
         kEntry = entry
         kov?.setGuideEntry(entry)
         line(approach, 0xFF0285AF.toInt(), 19f, "approach")
@@ -403,7 +435,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         line(approach, 0xFF0285AF.toInt(), 19f, "approach")
         startFlow(approach.dropLast(1) + course)
     }
-    fun clearGuide() { kakao.clearFitPadding(); kFlag = null; kEntry = null; kov?.setEndFlag(null, null); kov?.setGuideEntry(null); line(emptyList(), ROUTE, 0f, "guide"); line(emptyList(), Color.WHITE, 0f, "approach"); setFocus(false); stopFlow() }
+    fun clearGuide() { setApproachConnector(null); kakao.clearFitPadding(); kFlag = null; kEntry = null; kov?.setEndFlag(null, null); kov?.setGuideEntry(null); line(emptyList(), ROUTE, 0f, "guide"); line(emptyList(), Color.WHITE, 0f, "approach"); setFocus(false); stopFlow() }
 
     /** The guide is drawn above the background courses. */
     private fun setFocus(on: Boolean) { courseOverlay.guiding = on }

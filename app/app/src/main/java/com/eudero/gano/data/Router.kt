@@ -70,12 +70,13 @@ object Router {
         builtFor = roads
     }
 
-    private fun nearby(point: GeoPoint, maxOffsetM: Double, alternateM: Double): List<Snap> {
+    private fun nearby(point: GeoPoint, maxOffsetM: Double, alternateM: Double, reachable: DoubleArray? = null, allCandidates: Boolean = false): List<Snap> {
         val scale = cos(Math.toRadians(point.latitude))
         val latMargin = maxOffsetM / 111195.0
         val lonMargin = latMargin / scale
         val candidates = ArrayList<Snap>()
         for (edge in edges) {
+            if (reachable != null && !reachable[edge.start].isFinite()) continue
             val a = nodes[edge.start]
             val b = nodes[edge.end]
             if (point.latitude < minOf(a.latitude, b.latitude) - latMargin ||
@@ -86,27 +87,25 @@ object Router {
             if (projection.offsetM <= maxOffsetM) candidates.add(Snap(edge, projection))
         }
         if (candidates.isEmpty()) return emptyList()
+        if (allCandidates) return candidates
         val closest = candidates.minOf { it.projection.offsetM }
         return candidates.filter { it.projection.offsetM <= closest + alternateM }
             .sortedBy { it.projection.offsetM }.take(6)
     }
 
     /** 한 번의 탐색으로 주변 합류점들을 비교한다. 연결되지 않은 구간에는 안내선을 그리지 않는다. */
-    @Synchronized fun approach(roads: List<Road>, from: GeoPoint, targets: List<GeoPoint>, alternateM: Double = 1.5): Approach? {
+    @Synchronized fun approach(roads: List<Road>, from: GeoPoint, targets: List<GeoPoint>, alternateM: Double = 1.5, nearbyEntrance: Boolean = false): Approach? {
         if (roads.isEmpty()) return null
         build(roads)
-        val origins = nearby(from, 30.0, alternateM)
+        val origins = if (nearbyEntrance) nearby(from, 120.0, alternateM, allCandidates = true) else nearby(from, 30.0, alternateM)
         if (origins.isEmpty()) return null
-        val destinations = targets.map { nearby(it, 15.0, alternateM) }
-        if (destinations.all { it.isEmpty() }) return null
-
         val distances = DoubleArray(nodes.size) { Double.POSITIVE_INFINITY }
         val previous = IntArray(nodes.size) { -1 }
         val entrySnaps = arrayOfNulls<Snap>(nodes.size)
         val queue = PriorityQueue<Visit>(compareBy { it.distance })
         for (origin in origins) {
             for (node in listOf(origin.edge.start, origin.edge.end)) {
-                val distance = origin.costTo(node)
+                val distance = origin.costTo(node) + (if (nearbyEntrance) 4.0 * origin.projection.offsetM else 0.0)
                 if (distance >= distances[node]) continue
                 distances[node] = distance
                 entrySnaps[node] = origin
@@ -141,13 +140,15 @@ object Router {
             startSnap = origin
             endSnap = destination
         }
-        for ((i, snaps) in destinations.withIndex()) {
+        for ((i, point) in targets.withIndex()) {
+            if (from.distanceToAsDouble(point) > best) continue
+            val snaps = nearby(point, 15.0, alternateM, distances)
             for (destination in snaps) {
                 val (start, end) = destination.edge
                 consider(distances[start] + destination.costTo(start), i, start, entrySnaps[start], destination)
                 consider(distances[end] + destination.costTo(end), i, end, entrySnaps[end], destination)
                 for (origin in origins) if (destination.edge === origin.edge) {
-                    val cost = origin.projection.offsetM + destination.projection.offsetM +
+                    val cost = origin.projection.offsetM * (if (nearbyEntrance) 5.0 else 1.0) + destination.projection.offsetM +
                         origin.projection.point.distanceToAsDouble(destination.projection.point)
                     consider(cost, i, -1, origin, destination)
                 }
@@ -161,7 +162,8 @@ object Router {
             last = previous[last]
         }
         path.reverse()
-        val points = listOf(from, start.projection.point) + path + listOf(end.projection.point, targets[target])
+        val originPoints = if (nearbyEntrance) listOf(start.projection.point) else listOf(from, start.projection.point)
+        val points = originPoints + path + listOf(end.projection.point, targets[target])
         return Approach(target, points.filterIndexed { i, p -> i == 0 || p.distanceToAsDouble(points[i - 1]) > 0.01 })
     }
 }

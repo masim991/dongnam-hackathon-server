@@ -22,6 +22,7 @@ object RunState {
     @Volatile var phasesOn = true
     // 길 안내 계획 (시험 달리기와 기록 제목에 사용)
     @Volatile var simPath: List<com.eudero.maplib.GeoPoint>? = null
+    @Volatile var selectedCourse = emptyList<com.eudero.maplib.GeoPoint>()
     @Volatile var pendingEntry: com.eudero.maplib.GeoPoint? = null
     @Volatile var courseName = ""
     @Volatile var sim = false

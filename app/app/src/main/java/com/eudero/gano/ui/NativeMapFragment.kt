@@ -46,6 +46,8 @@ class NativeMapFragment : Fragment() {
     private var curDir: Dir? = null
     private var nav: NavHelper? = null
     private var approachNav: NavHelper? = null
+    private var activeApproach = emptyList<GeoPoint>()
+    private var connector: GeoPoint? = null
     private var lastRouteCheck: GeoPoint? = null
     private var routeCheckJob: kotlinx.coroutines.Job? = null
     private var navOn = false
@@ -53,6 +55,11 @@ class NativeMapFragment : Fragment() {
     private var guideRequest = 0
     private var planning = false
     private var previewPlan: kotlinx.coroutines.Deferred<Plan?>? = null
+    private data class CourseCard(val profile: CourseProfile, val photos: List<Bitmap>, val cover: Boolean)
+    private var courseCards = emptyMap<Course, CourseCard>()
+    private var demoPlan: Plan? = null
+    private val initialPlans = mutableMapOf<Course, Plan>()
+    private var previewHint: TextView? = null
     private var previewOrigin: GeoPoint? = null
     private lateinit var banner: TextView
     private lateinit var mapStatus: TextView
@@ -91,7 +98,15 @@ class NativeMapFragment : Fragment() {
         fun ico(id: Int) = android.graphics.BitmapFactory.decodeResource(resources, id)
         m.setRecenterIcon(R.drawable.ic_map_target); m.setWheelIcons(ico(R.drawable.ic_g_write), ico(R.drawable.ic_g_photo), ico(R.drawable.ic_g_report))
         m.onMenuAction = { action -> openBubbleComposer(m, action) }
-        m.courseOverlay.onCourseTap = { showCourse(it) }
+        m.courseOverlay.onCourseTap = { course ->
+            if (!RunState.running) {
+                if (plan != null) {
+                    (parentFragment as? MapHostFragment)?.hideGuide(false)
+                    closeCourse()
+                }
+                showCourse(course)
+            }
+        }
         m.onLocationFix = { refreshEntry(it) }
         m.onMapTap = {
             val dismiss = !RunState.running && m.courseOverlay.selected != null
@@ -222,7 +237,7 @@ class NativeMapFragment : Fragment() {
         loadingText.text = "정보를 불러오는 중 (0/4)"
         thread {
             RunStore.seedSamples(ctx)
-            val coursesReady = runCatching { CourseRepo.loadAll(ctx, force, 4) { n ->
+            val coursesReady = runCatching { CourseRepo.loadAll(ctx, force) { n ->
                 activity?.runOnUiThread { if (map === m) loadingText.text = "정보를 불러오는 중 ($n/4)" }
             } }.getOrDefault(false)
             activity?.runOnUiThread { if (map === m) loadingText.text = "내 버블과 주변 버블을 불러오는 중이에요" }
@@ -243,11 +258,62 @@ class NativeMapFragment : Fragment() {
         loading.setOnClickListener { loading.setOnClickListener(null); loading.isClickable = true; again() }
     }
 
+    private fun prepareCards(ctx: android.content.Context, posts: List<Post>): Map<Course, CourseCard> {
+        val photos = posts.filter { !it.warn && it.img.isNotEmpty() }
+        val images = mutableMapOf<String, Bitmap?>()
+        val covers = ctx.assets.list("courses").orEmpty().toSet()
+        return CourseRepo.all.associateWith { course ->
+            val cover = "${course.code}.jpg" in covers
+            val paths = if (cover) listOf("courses/${course.code}.jpg") else if (course.detail) {
+                photos.filter { it.road.isNotEmpty() && course.name.contains(it.road.take(2)) }
+                    .ifEmpty { photos }.take(3).map { it.img }
+            } else emptyList()
+            val thumbs = paths.mapNotNull { path ->
+                if (path !in images) images[path] = ImageLoader.thumbnail(ctx, path)
+                images[path]
+            }
+            CourseCard(CourseProfile(CourseRepo.profileFor(course), CourseRepo.courseCrossings(course.code)), thumbs, cover)
+        }
+    }
+
     private fun waitLocation(m: EudMapView) {
         loadingText.text = "내 위치를 찾는 중이에요"
         m.whenLocated(25000) { ok ->
             if (map !== m) return@whenLocated
-            if (ok) waitForBubbles(m)
+            if (ok) {
+                val origin = currentPos(m)
+                if (origin == null) {
+                    retry("현재 위치를 찾지 못했어요") { waitLocation(m) }
+                    return@whenLocated
+                }
+                loadingText.text = "코스 합류 경로와 A·B 방향을 준비하고 있어요"
+                val ctx = requireContext().applicationContext
+                val posts = displayedPosts.orEmpty()
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val cards = async(Dispatchers.IO) { prepareCards(ctx, posts) }
+                    val result = withContext(Dispatchers.Default) {
+                        runCatching {
+                            val plans = CourseRepo.courses.associateWith { course -> GuidePlanner.plan(course, origin) }
+                            val demo = CourseRepo.courses.find { it.code == "HD-BEACHPROM" }?.let {
+                                GuidePlanner.plan(it, demoHotel, demo = true)
+                            }
+                            plans to demo
+                        }
+                    }
+                    val preparedCards = cards.await()
+                    val prepared = result.getOrNull()?.first
+                    if (map !== m) return@launch
+                    if (prepared == null || prepared.values.any { it == null }) {
+                        retry("일부 코스의 경로를 준비하지 못했어요") { load(true) }
+                        return@launch
+                    }
+                    courseCards = preparedCards
+                    demoPlan = result.getOrThrow().second
+                    initialPlans.clear()
+                    prepared.forEach { (course, guide) -> if (guide != null) initialPlans[course] = guide }
+                    waitForBubbles(m)
+                }
+            }
             else if (!m.hasLocationPermission()) {
                 retry("위치 권한이 필요해요") {
                     locPerm.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
@@ -326,8 +392,10 @@ class NativeMapFragment : Fragment() {
 
     private fun closeCourse() {
         previewPlan?.cancel(); previewPlan = null; previewOrigin = null
+        previewHint = null
         showWarnings(null)
         guideRequest++
+        routeCheckJob?.cancel(); activeApproach = emptyList(); connector = null
         planning = false
         plan = null; curDir = null; nav = null; approachNav = null; guideCover = 0
         map?.setRecenterVisible(true); mapControlsShown = true; addBubble.visibility = View.VISIBLE; updateMapStatus()
@@ -347,48 +415,26 @@ class NativeMapFragment : Fragment() {
         showWarnings(lines)
         val main = lines.maxByOrNull { it.size }.orEmpty()
         m.showCourseArrows(main)
-        val profile = CourseProfile(CourseRepo.profileFor(c), CourseRepo.courseCrossings(c.code))
-        m.setLayers(profile.steep, profile.markers.map { it.dot }, true)
+        val cardData = courseCards[c]
+        m.setLayers(cardData?.profile?.steep.orEmpty(), cardData?.profile?.markers.orEmpty().map { it.dot }, true)
         card.post {
-            if (m.courseOverlay.selected === c && card.isShown && curDir == null) {
+            if ((!c.detail || previewPlan == null) && m.courseOverlay.selected === c && card.isShown && curDir == null) {
                 val cover = (m.height - card.top).coerceAtLeast(0)
                 m.frameSelection(main + listOfNotNull(currentPos(m)), cover, animate)
             }
         }
-        previewPlan?.cancel()
-        val origin = currentPos(m)
-        previewOrigin = origin
-        previewPlan = if (origin != null && c.detail) {
-            val demo = RunState.demo
-            viewLifecycleOwner.lifecycleScope.async(Dispatchers.Default) { runCatching { GuidePlanner.plan(c, origin, demo) }.getOrNull() }
-        } else null
-        previewPlan?.let { job ->
-            viewLifecycleOwner.lifecycleScope.launch {
-                val guide = job.await() ?: return@launch
-                if (previewPlan !== job || m.courseOverlay.selected !== c || plan != null || guide.isAtEntry(guide.origin)) return@launch
-                val path = guide.dirs.first().approach
-                m.previewJoin(path, guide.entry)
-                showWarnings(lines + listOf(path))
-                card.post {
-                    if (previewPlan === job && plan == null && card.isShown)
-                        m.frameSelection(listOf(guide.origin, guide.entry) + path, m.height - card.top, false)
-                }
-            }
-        }
+        guideRequest++
+        planning = false
+        previewPlan?.cancel(); previewPlan = null; previewOrigin = null
         card.removeAllViews()
         card.addView(Glass.backButton(ctx) { closeCourse() })
-        // 코스 사진 (assets/courses/<코드>.jpg 가 있으면 카드에 보여줌)
-        val photo = runCatching { ctx.assets.open("courses/${c.code}.jpg").use { android.graphics.BitmapFactory.decodeStream(it) } }.getOrNull()
-        if (photo != null) card.addView(ImageView(ctx).apply { setImageBitmap(photo); scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
-            background = GradientDrawable().apply { cornerRadius = 14 * d; setColor(0xFF1B1F26.toInt()) } }, LinearLayout.LayoutParams(-1, dp(120)).also { it.bottomMargin = dp(10) })
-        // 해운대 코스: 이 길에서 러너들이 남긴 사진 (최대 3장)
-        if (c.detail && photo == null) {
-            val shots = Repo.allPosts(ctx).filter { it.img.isNotEmpty() && !it.warn && it.road.isNotEmpty() && c.name.contains(it.road.take(2)) }.take(3)
-            val pics = if (shots.isNotEmpty()) shots else Repo.allPosts(ctx).filter { it.img.isNotEmpty() && !it.warn }.take(3)
-            val strip = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
-            pics.forEach { p -> strip.addView(ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
-                background = GradientDrawable().apply { cornerRadius = 12 * d; setColor(0xFF1B1F26.toInt()) }; ImageLoader.load(ctx, p.img, this) }, LinearLayout.LayoutParams(0, dp(78), 1f).also { it.rightMargin = dp(6) }) }
-            if (pics.isNotEmpty()) card.addView(strip, LinearLayout.LayoutParams(-1, -2).also { it.bottomMargin = dp(10) })
+        if (cardData != null && cardData.photos.isNotEmpty()) {
+            val strip = LinearLayout(ctx)
+            for (bitmap in cardData.photos) strip.addView(ImageView(ctx).apply {
+                setImageBitmap(bitmap); scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
+                background = GradientDrawable().apply { cornerRadius = 12 * d; setColor(0xFF1B1F26.toInt()) }
+            }, LinearLayout.LayoutParams(0, dp(if (cardData.cover) 120 else 78), 1f).also { it.rightMargin = dp(4) })
+            card.addView(strip, LinearLayout.LayoutParams(-1, -2).also { it.bottomMargin = dp(8) })
         }
         card.addView(TextView(ctx).apply { text = c.name; textSize = 19f; setTextColor(Color.WHITE); typeface = Fonts.bold })
         card.addView(TextView(ctx).apply { text = "${c.region} · %.1f km".format(c.lengthM / 1000.0); textSize = 13f; setTextColor(EudMapView.ACCENT); setPadding(0, dp(2), 0, dp(4)) })
@@ -397,6 +443,10 @@ class NativeMapFragment : Fragment() {
             textSize = 13f; setTextColor(Color.WHITE); setPadding(0, 0, 0, dp(4))
         })
         card.addView(TextView(ctx).apply { text = c.tagline; textSize = 14f; setLineSpacing(0f, 1.18f); setTextColor(0xFFD5D9E0.toInt()); setPadding(0, 0, 0, dp(12)) })
+        previewHint = if (c.detail) TextView(ctx).apply {
+            text = "내 위치를 기다리는 중이에요"; textSize = 13f; setTextColor(EudMapView.ACCENT)
+            setPadding(0, 0, 0, dp(8)); card.addView(this)
+        } else null
         val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(Button(ctx).apply {
             text = if (c.detail) "이 길로 가기" else "이 길로 가기 (준비 중)"; textSize = 15f
@@ -406,9 +456,54 @@ class NativeMapFragment : Fragment() {
         }, LinearLayout.LayoutParams(0, dp(48), 1f).also { it.rightMargin = dp(8) })
         card.addView(row)
         card.animate().cancel()
+        if (c.detail) currentPos(m)?.let { preparePreview(c, it) }
         if (!animate) { card.visibility = View.VISIBLE; card.alpha = 1f; card.translationY = 0f; return }
         card.visibility = View.VISIBLE; card.alpha = 0f; card.translationY = dp(40).toFloat()
         card.animate().alpha(1f).translationY(0f).setDuration(260).start()
+    }
+
+    private fun preparePreview(c: Course, origin: GeoPoint) {
+        val m = map ?: return
+        val hint = previewHint ?: return
+        if (planning || plan != null) return
+        val demo = RunState.demo
+        val cached = (if (demo) demoPlan else initialPlans[c])?.takeIf { it.course === c && it.origin.distanceToAsDouble(origin) < 8 }
+        previewPlan?.cancel()
+        previewOrigin = origin
+        val job = if (cached != null) kotlinx.coroutines.CompletableDeferred(cached)
+            else viewLifecycleOwner.lifecycleScope.async(Dispatchers.Default) { GuidePlanner.plan(c, origin, demo) }
+        previewPlan = job
+        if (cached == null) hint.text = "현재 위치에서 합류점을 찾고 있어요"
+        viewLifecycleOwner.lifecycleScope.launch {
+            val guide = job.await()
+            if (previewPlan !== job || map !== m || m.courseOverlay.selected !== c || plan != null) return@launch
+            if (guide == null) {
+                hint.text = "경로를 준비하지 못했어요. 이 길로 가기를 눌러 다시 시도해 주세요."
+                previewPlan = null
+                return@launch
+            }
+            if (!demo) initialPlans[c] = guide
+            val path = guide.dirs.first().approach
+            val joined = guide.isAtEntry(origin)
+            hint.text = when {
+                joined -> "코스 위에 있어요 · 바로 시작할 수 있어요"
+                path.isNotEmpty() && guide.connectorTarget != null -> "점선은 보행로 입구 방향 · 파란 보행로 ${guide.approachM}m"
+                path.isNotEmpty() -> "파란 길을 따라 합류점까지 도보 ${guide.approachM}m"
+                else -> "점선은 합류점 방향 · 카카오맵 도보 길찾기 ↗"
+            }
+            hint.setOnClickListener(if (!joined && path.isEmpty()) View.OnClickListener {
+                openWalkingDirections(requireContext(), currentPos(m) ?: origin, guide.entry)
+            } else null)
+            m.previewJoin(path, guide.entry.takeUnless { joined })
+            m.setApproachConnector(guide.connectorTarget)
+            val lines = c.lines.map { line -> line.lat.indices.map { GeoPoint(line.lat[it], line.lon[it]) } }
+            if (path.isEmpty()) m.showCourseArrows(lines.maxByOrNull { it.size }.orEmpty())
+            showWarnings(lines + listOf(path))
+            card.post {
+                if (previewPlan === job && plan == null && card.isShown)
+                    m.frameSelection(if (joined) lines.flatten() + origin else listOf(origin, guide.entry) + path, m.height - card.top, false)
+            }
+        }
     }
 
     /** 해운대 밖 지역: 길 안내·달리기는 막고, 쉬운 말로 안내 */
@@ -445,12 +540,17 @@ class NativeMapFragment : Fragment() {
                 Toast.makeText(ctx, "길을 불러오지 못했어요. 다시 눌러 주세요.", Toast.LENGTH_LONG).show()
                 return@launch
             }
+            routeCheckJob?.cancel()
+            lastRouteCheck = pl.origin
+            activeApproach = pl.dirs.first().approach
+            connector = pl.connectorTarget
             plan = pl
             previewLayers(pl.dirs[0])   // 미리보기에서만: 오르막은 빨강, 주변 신호등
             card.visibility = View.GONE; m.bottomInsetDp = 330f
             guideCover = 0
             m.setFollowLock(false)
             (parentFragment as? MapHostFragment)?.showGuide(pl, {
+                routeCheckJob?.cancel()
                 plan = null; curDir = null; RunState.simPath = null
                 GuideNotifier.hide(ctx)
                 m.setLayers(emptyList(), emptyList(), false); m.clearGuide()
@@ -458,9 +558,9 @@ class NativeMapFragment : Fragment() {
             }, { dir ->
                 curDir = dir
                 nav = NavHelper(dir.coursePath)
-                approachNav = dir.approach.takeIf { it.size >= 2 }?.let(::NavHelper)
+                approachNav = activeApproach.takeIf { it.size >= 2 }?.let(::NavHelper)
                 RunState.ascentM = dir.ascentM; previewLayers(dir); if (guideCover > 0) fitGuide()
-                RunState.simPath = dir.path; RunState.courseName = "${c.name} ${dir.label}"
+                RunState.simPath = activeApproach.dropLast(1) + dir.coursePath; RunState.courseName = "${c.name} ${dir.label}"
                 GuideNotifier.show(ctx, "${c.name} · ${dir.label}")
             }, { toggleRun() })
         }
@@ -485,7 +585,8 @@ class NativeMapFragment : Fragment() {
         if (navOn) return
         val guide = plan ?: return
         val here = currentPos(m) ?: guide.origin
-        m.setGuide(dir.approach, dir.coursePath, here, guideCover, guide.entry.takeUnless { guide.isAtEntry(here) })
+        m.setApproachConnector(connector)
+        m.setGuide(activeApproach, dir.coursePath, here, guideCover, guide.entry.takeUnless { guide.isAtEntry(here) })
     }
 
     /** 러닝이 끝나면 거리·시간·페이스·오르막·날짜와 달린 길 그림을 팝업으로 보여준다 */
@@ -549,19 +650,27 @@ class NativeMapFragment : Fragment() {
         if (navOn && RunState.running) {
             val pts = RunState.points
             val me = pts.lastOrNull()?.let { GeoPoint(it.lat, it.lon) } ?: m.myLocation ?: return
-            val entry = plan?.entry
-            if (entry != null && plan?.isAtEntry(me) == true) approachNav = null
-            val joining = approachNav
-            val st = (joining ?: nav)?.step(me, allowArrival = joining == null)
             val pending = RunState.pendingEntry
-            val locatingEntry = pending != null && joining == null
-            if (pending != null && joining == null) retryApproach(me, pending)
-            banner.text = if (locatingEntry) {
-                "합류점까지 직선 ${me.distanceToAsDouble(pending!!).toInt()}m\n보행 경로 정보가 없는 구간이에요"
-            } else if (joining != null) "코스 합류점으로 이동 중\n${st?.text.orEmpty()}"
-                else st?.text.orEmpty() + RunState.remainStr().let { if (it.isNotEmpty()) "\n$it" else "" }
-            var bearing = if (locatingEntry) nav?.bearing(me, pending!!)?.toFloat() ?: 0f else st?.bearing ?: 0f
-            if (pts.size >= 2) { val a = pts[pts.size - 2]; val b = pts.last(); val ga = GeoPoint(a.lat, a.lon); if (ga.distanceToAsDouble(me) >= 6.0) bearing = (nav?.bearing(ga, me) ?: bearing.toDouble()).toFloat() }
+            if (plan?.isAtEntry(me) == true) approachNav = null
+            val target = advanceConnector(me)
+            val joining = approachNav
+            if (pending != null && (joining == null || target != null)) retryApproach(me, pending)
+            val directionOnly = target ?: pending?.takeIf { joining == null }
+            val st = if (directionOnly == null) (joining ?: nav)?.step(me, allowArrival = joining == null) else null
+            banner.text = when {
+                directionOnly != null -> {
+                    val place = if (activeApproach.isEmpty()) "합류점" else "보행로 입구"
+                    "점선은 ${place} 방향\n${place}까지 직선 ${me.distanceToAsDouble(directionOnly).toInt()}m"
+                }
+                joining != null -> "코스 합류점으로 이동 중\n${st?.text.orEmpty()}"
+                else -> st?.text.orEmpty() + RunState.remainStr().let { if (it.isNotEmpty()) "\n$it" else "" }
+            }
+            var bearing = directionOnly?.let { nav?.bearing(me, it)?.toFloat() } ?: st?.bearing ?: 0f
+            if (pts.size >= 2) {
+                val a = pts[pts.size - 2]
+                val previous = GeoPoint(a.lat, a.lon)
+                if (previous.distanceToAsDouble(me) >= 6.0) bearing = nav?.bearing(previous, me)?.toFloat() ?: bearing
+            }
             m.navTo(me, bearing)
         }
         if (navOn && !RunState.running) {   // 종료: 원래 지도 모드로
@@ -572,26 +681,54 @@ class NativeMapFragment : Fragment() {
         }
     }
 
+    private fun advanceConnector(position: GeoPoint): GeoPoint? {
+        val target = connector ?: return null
+        if (plan?.isAtEntry(position) == true ||
+            (activeApproach.isNotEmpty() && (position.distanceToAsDouble(target) <= 10 || nearGuide(position, activeApproach, 8.0)))) {
+            connector = null
+            map?.setApproachConnector(null)
+        }
+        return connector
+    }
+
     private fun retryApproach(position: GeoPoint, entry: GeoPoint) {
-        val dir = curDir ?: return
+        val guide = plan ?: return
         if (routeCheckJob?.isActive == true || (lastRouteCheck?.distanceToAsDouble(position) ?: 100.0) < 30) return
         lastRouteCheck = position
-        val started = RunState.startMs
         routeCheckJob = viewLifecycleOwner.lifecycleScope.launch {
             val path = withContext(Dispatchers.Default) {
-                Router.approach(CourseRepo.approachRoads.ifEmpty { CourseRepo.walkingRoads }, position, listOf(entry), alternateM = 6.0)?.points
-            } ?: return@launch
-            if (!RunState.running || RunState.startMs != started || curDir !== dir || RunState.pendingEntry !== entry) return@launch
+                val roads = CourseRepo.approachRoads.ifEmpty { CourseRepo.walkingRoads }
+                Router.approach(roads, position, listOf(entry), alternateM = 15.0)?.points
+            }?.takeIf { it.size >= 2 } ?: return@launch
+            val dir = curDir ?: return@launch
+            if (plan !== guide || (RunState.running && RunState.pendingEntry == null)) return@launch
+            val here = map?.let(::currentPos) ?: position
+            if (guide.isAtEntry(here) || here.distanceToAsDouble(position) > 30) return@launch
+            activeApproach = path
+            connector = null
             approachNav = NavHelper(path)
+            map?.setApproachConnector(null)
             map?.updateApproach(path, dir.coursePath)
+            if (!RunState.running) RunState.simPath = path.dropLast(1) + dir.coursePath
+            (parentFragment as? MapHostFragment)?.updateApproach(approachNav, null, here)
             showWarnings(listOf(path, dir.coursePath))
         }
     }
 
     private fun refreshEntry(position: GeoPoint) {
-        val guide = plan ?: return
+        val guide = plan
+        if (guide == null) {
+            val selected = map?.courseOverlay?.selected ?: return
+            val previous = previewOrigin
+            if (selected.detail && !planning && previewPlan?.isActive != true &&
+                (previous == null || previous.distanceToAsDouble(position) >= 20)) preparePreview(selected, position)
+            return
+        }
         if (!RunState.running) {
-            (parentFragment as? MapHostFragment)?.updateEntryPosition(position)
+            val target = advanceConnector(position)
+            (parentFragment as? MapHostFragment)?.updateApproach(approachNav, target, position)
+            if (!guide.isAtEntry(position) && (activeApproach.isEmpty() || target != null ||
+                    !nearGuide(position, activeApproach, 35.0))) retryApproach(position, guide.entry)
         }
     }
 
@@ -610,7 +747,8 @@ class NativeMapFragment : Fragment() {
             Toast.makeText(ctx, "내 위치를 찾는 중이에요", Toast.LENGTH_SHORT).show()
             return
         }
-        lastRouteCheck = guide.origin
+        advanceConnector(position)
+        RunState.selectedCourse = curDir?.coursePath.orEmpty()
         RunState.pendingEntry = guide.entry.takeUnless { guide.isAtEntry(position) || RunState.demo }
         if (guide.isAtEntry(position)) {
             approachNav = null
@@ -623,6 +761,7 @@ class NativeMapFragment : Fragment() {
 
     // ---- 시연 모드가 부르는 동작들 (사람이 누르는 것과 같은 흐름을 그대로 탄다) ----
     private var demoPosts = emptyList<Post>()
+    private val demoHotel = GeoPoint(35.160951, 129.167202)
     private var demoCourse: Course? = null
     private var draftPoint: GeoPoint? = null
     private val demoWriter = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -638,7 +777,7 @@ class NativeMapFragment : Fragment() {
 
     fun demoPrepare(): Boolean {
         val m = map ?: return false
-        val hotel = GeoPoint(35.160951, 129.167202)
+        val hotel = demoHotel
         val eligible = CourseRepo.courses.filter { CourseRepo.profileFor(it).size >= 2 }
         demoCourse = eligible.firstOrNull { it.code == "HD-BEACHPROM" } ?: eligible.minByOrNull { c ->
             CourseRepo.profileFor(c).minOf { hotel.distanceToAsDouble(GeoPoint(it.lat, it.lon)) }

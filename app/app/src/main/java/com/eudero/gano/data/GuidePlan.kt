@@ -1,7 +1,6 @@
 package com.eudero.gano.data
 
 import com.eudero.maplib.Course
-import com.eudero.maplib.Line
 import com.eudero.maplib.GeoPoint
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -19,16 +18,31 @@ class Dir(val label: String, val approach: List<GeoPoint>, val segment: List<PP>
 
 class Plan(
     val course: Course, val origin: GeoPoint, val entry: GeoPoint, val approachM: Int,
-    val dirs: List<Dir>, val layers: CourseRepo.Layers
+    val dirs: List<Dir>
 ) {
+    val connectorTarget: GeoPoint? get() {
+        if (isAtEntry(origin)) return null
+        val first = dirs.first().approach.firstOrNull() ?: return entry
+        return first.takeIf { origin.distanceToAsDouble(it) > 1.0 }
+    }
     fun isAtEntry(position: GeoPoint): Boolean = position.distanceToAsDouble(entry) <= GuidePlanner.ENTRY_RADIUS_M
 }
 
 object GuidePlanner {
     const val ENTRY_RADIUS_M = 20.0
 
-    fun plan(course: Course, me: GeoPoint, demo: Boolean = false): Plan? {
-        val profile = CourseRepo.profileFor(course)
+    internal fun reachedFinish(courseMeters: Double, traveledOnCourse: Double, distanceToEnd: Double): Boolean {
+        if (courseMeters <= 0) return false
+        val radius = (courseMeters / 4).coerceIn(3.0, 30.0)
+        return distanceToEnd <= radius && traveledOnCourse >= minOf(courseMeters * 0.8, courseMeters - radius).coerceAtLeast(1.0)
+    }
+
+    fun plan(course: Course, me: GeoPoint, demo: Boolean = false): Plan? =
+        calculate(course, me, CourseRepo.profileFor(course), CourseRepo.walkingRoads, CourseRepo.approachRoads,
+            CourseRepo.courseCrossings(course.code), demo)
+
+    internal fun calculate(course: Course, me: GeoPoint, profile: List<PP>, walking: List<com.eudero.maplib.Road>,
+                           access: List<com.eudero.maplib.Road>, facilities: List<com.eudero.maplib.Dot>, demo: Boolean): Plan? {
         if (profile.size < 2) return null
 
         val points = profile.map { GeoPoint(it.lat, it.lon) }
@@ -43,19 +57,43 @@ object GuidePlanner {
             }
         }
         var segmentIndex = nearestSegment
+        var join = closest
         var route: Router.Approach? = null
         if (closest.offsetM > ENTRY_RADIUS_M) {
-            route = Router.approach(CourseRepo.walkingRoads, me, candidates.map { projections[it].point })
+            route = Router.approach(walking, me, candidates.map { projections[it].point })
             if (route != null) {
                 segmentIndex = candidates[route.targetIndex]
+                join = projections[segmentIndex]
             } else {
                 // A riverside entrance or a crosswalk may join the course beyond the closest block.
-                val roads = CourseRepo.approachRoads.ifEmpty { CourseRepo.walkingRoads }
-                route = Router.approach(roads, me, projections.map { it.point }, alternateM = 6.0)
-                if (route != null) segmentIndex = route.targetIndex
+                val roads = access.ifEmpty { walking }
+                // A footpath can meet the middle of a long course segment. Sample the entire
+                // line at less than the allowed 15 m road snap, retaining its profile position.
+                val entrances = buildList {
+                    for (i in projections.indices) {
+                        add(i to projections[i])
+                        val a = points[i]; val b = points[i + 1]
+                        val count = kotlin.math.ceil(a.distanceToAsDouble(b) / 12.0).toInt().coerceAtLeast(1)
+                        for (j in 0 until count) {
+                            val f = j.toDouble() / count
+                            val pt = GeoPoint(a.latitude + (b.latitude - a.latitude) * f,
+                                a.longitude + (b.longitude - a.longitude) * f)
+                            add(i to Projection(pt, f, me.distanceToAsDouble(pt)))
+                        }
+                    }
+                    add(points.lastIndex - 1 to Projection(points.last(), 1.0, me.distanceToAsDouble(points.last())))
+                }.sortedBy { it.second.offsetM }
+                val targets = entrances.map { it.second.point }
+                route = Router.approach(roads, me, targets, alternateM = 15.0)
+                    ?: Router.approach(roads, me, targets, alternateM = 15.0, nearbyEntrance = true)
+                        ?.takeIf { it.points.size >= 2 }
+                if (route != null) {
+                    val entrance = entrances[route.targetIndex]
+                    segmentIndex = entrance.first
+                    join = entrance.second
+                }
             }
         }
-        val join = projections[segmentIndex]
         val entry = join.point
         val before = profile[segmentIndex]
         val after = profile[segmentIndex + 1]
@@ -69,11 +107,21 @@ object GuidePlanner {
             else listOf(joinPoint) + profile.take(segmentIndex + 1).asReversed()
         val approach = route?.points.orEmpty()
         val approachM = approach.zipWithNext { a, b -> a.distanceToAsDouble(b) }.sum().roundToInt()
-        val facilities = CourseRepo.courseCrossings(course.code)
         val dirs = ArrayList<Dir>()
         when {
+            points.first().distanceToAsDouble(points.last()) <= 2 && profile.last().d - profile.first().d > 50 -> {
+                // Rotate the lap to the actual entrance; distances must stay monotonic across the seam.
+                val lap = forward + backward.asReversed().drop(1)
+                var meters = 0.0
+                val ordered = lap.mapIndexed { i, point ->
+                    if (i > 0) meters += GeoPoint(lap[i-1].lat, lap[i-1].lon).distanceToAsDouble(GeoPoint(point.lat, point.lon))
+                    PP(meters.roundToInt(), point.e, point.lat, point.lon)
+                }
+                dirs.add(Dir("방향 A", approach, ordered, facilities))
+                dirs.add(Dir("방향 B", approach, ordered.asReversed(), facilities))
+            }
             joinPoint.d - profile.first().d <= 5 -> dirs.add(Dir("방향 A", approach, forward, facilities))
-            profile.last().d - joinPoint.d <= 5 -> dirs.add(Dir("방향 A", approach, backward, facilities))
+            profile.last().d - joinPoint.d <= 5 -> dirs.add(Dir("방향 B", approach, backward, facilities))
             else -> {
                 dirs.add(Dir("방향 A", approach, forward, facilities))
                 // The demo's westbound crossing was reported on site; the feed has no coordinate for it.
@@ -81,8 +129,6 @@ object GuidePlanner {
                 dirs.add(Dir("방향 B", approach, backward, facilities, observedCrossings))
             }
         }
-        val whole = Course(course.code, course.name, course.tagline, course.badge, course.lengthM,
-            listOf(Line(DoubleArray(profile.size) { profile[it].lat }, DoubleArray(profile.size) { profile[it].lon })), course.region, true)
-        return Plan(course, me, entry, approachM, dirs, CourseRepo.layersFor(whole))
+        return Plan(course, me, entry, approachM, dirs)
     }
 }

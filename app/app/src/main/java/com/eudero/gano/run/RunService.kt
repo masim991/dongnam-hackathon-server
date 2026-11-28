@@ -50,6 +50,9 @@ class RunService : Service(), LocationListener, android.hardware.SensorEventList
     private var hrSum = 0L; private var hrN = 0
     private var last: Location? = null
     private val filter = com.eudero.maplib.LocationFilter()
+    private var metersAtJoin = 0.0
+    private var courseMeters = 0.0
+    private var routeForSnapping = emptyList<Pair<Double, Double>>()
     private var lastGpsAt = 0L
     private var lastPhase = ""
 
@@ -108,10 +111,13 @@ class RunService : Service(), LocationListener, android.hardware.SensorEventList
             if (entry.distanceToAsDouble(com.eudero.maplib.GeoPoint(lat, lon)) >
                 com.eudero.gano.data.GuidePlanner.ENTRY_RADIUS_M) return
             RunState.pendingEntry = null
+            metersAtJoin = RunState.distanceM
+            filter.snapPath = routeForSnapping
         }
         if (RunState.goalType != 3 || !RunState.running) return
         val end = RunState.simPath?.lastOrNull() ?: return
-        if (RunState.distanceM > 100 && end.distanceToAsDouble(com.eudero.maplib.GeoPoint(lat, lon)) <= 30.0) {
+        if (com.eudero.gano.data.GuidePlanner.reachedFinish(courseMeters, RunState.distanceM - metersAtJoin,
+                end.distanceToAsDouble(com.eudero.maplib.GeoPoint(lat, lon)))) {
             RunState.completed = true; buzz()
             finish()
         }
@@ -161,7 +167,12 @@ class RunService : Service(), LocationListener, android.hardware.SensorEventList
         if (sim) RunState.pendingEntry = null
         demoPlayback = sim && RunState.demo
         tickCount = 0; hrSum = 0; hrN = 0; last = null
-        filter.reset(); filter.snapPath = RunState.simPath?.map { it.latitude to it.longitude }
+        metersAtJoin = 0.0
+        val course = RunState.selectedCourse.ifEmpty { RunState.simPath.orEmpty() }
+        courseMeters = course.zipWithNext { a, b -> a.distanceToAsDouble(b) }.sum()
+        routeForSnapping = course.map { it.latitude to it.longitude }
+        filter.reset()
+        filter.snapPath = routeForSnapping.takeIf { RunState.pendingEntry == null }
         if (sim) { val p = RunState.simPath!!; simCum = DoubleArray(p.size); for (i in 1 until p.size) simCum[i] = simCum[i - 1] + p[i - 1].distanceToAsDouble(p[i]); simStartedAt = android.os.SystemClock.elapsedRealtime() }
         if (Build.VERSION.SDK_INT >= 29) startForeground(ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         else startForeground(ID, buildNotification())
