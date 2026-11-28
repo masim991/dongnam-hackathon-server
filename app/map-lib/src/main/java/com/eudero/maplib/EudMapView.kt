@@ -33,7 +33,11 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
 
     private val kakao: KakaoBackground                           // 배경: 카카오맵
     private val loc = SmoothLocationProvider(ctx)
-    private var meBitmap: Bitmap? = null
+    private val myBubble = android.widget.ImageView(ctx).apply {
+        visibility = INVISIBLE
+        contentDescription = "내 위치 버블"
+        scaleType = android.widget.ImageView.ScaleType.FIT_XY
+    }
     val pinOverlay: PinOverlay
     val courseOverlay: CourseOverlay
     val layerOverlay: LayerOverlay          // 경사 구간(길 아래)
@@ -62,6 +66,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         pinOverlay = PinOverlay(); courseOverlay = CourseOverlay(); layerOverlay = LayerOverlay()
         kakao = KakaoBackground(ctx, kakaoKey)
         addView(kakao, LayoutParams(-1, -1))
+        addView(myBubble, LayoutParams(1, 1, Gravity.TOP or Gravity.LEFT))
         kakao.onCameraSettled = { kov?.refreshSharedLanes(); kov?.onPinZoomChanged() }
         run {
             kakao.onState = { st -> if (st == "ready") post {
@@ -108,7 +113,9 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
 
     /** 내 위치 핀 (흰색 유리 물방울, 프로필 얼굴). 아래쪽 뾰족한 끝이 실제 위치. */
     fun setMeMarker(face: Bitmap?) {
-        meBitmap = bubbleImage(context, face, Color.WHITE, SINGLE_BUBBLE_WIDTH_DP)
+        val image = bubbleImage(context, face, Color.WHITE, SINGLE_BUBBLE_WIDTH_DP)
+        myBubble.setImageBitmap(image)
+        myBubble.layoutParams = LayoutParams(image.width, image.height, Gravity.TOP or Gravity.LEFT)
     }
 
     private fun startWheel(x: Float, y: Float) {
@@ -152,14 +159,22 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     private fun kakaoTick() {
         kov?.let { o ->
             o.sync()
-            o.refreshMeOpacity()
             val l = me()
             if (l != null) {
-                val key = "${l.latitude},${l.longitude},${meBitmap?.hashCode()},$navActive,$navBearing"
-                if (key != lastMeKey) { lastMeKey = key; o.updateMe(l.latitude, l.longitude, meBitmap, navActive, navBearing - mapUp) }
+                if (myBubble.drawable != null) screenPoint(l.latitude, l.longitude)?.let { point ->
+                    myBubble.translationX = point.x - myBubble.layoutParams.width / 2f
+                    myBubble.translationY = (point.y - myBubble.layoutParams.height).toFloat()
+                    myBubble.visibility = VISIBLE
+                }
+                val key = "${l.latitude},${l.longitude},$navActive,$navBearing"
+                if (key != lastMeKey) { lastMeKey = key; o.updateNavigationArrow(l.latitude, l.longitude, navActive, navBearing - mapUp) }
                 // 보는 방향(부채꼴): 달리는 중(내비)에는 진행 방향 화살촉이 대신한다. 지도를 돌려 놓았으면 그만큼 보정.
                 val now = android.os.SystemClock.uptimeMillis()
-                if (now - mapUpAt > 250) { mapUpAt = now; mapUp = kakao.upBearing(); o.mapUp = mapUp; if (navActive) lastMeKey = "" }
+                if (now - mapUpAt > 250) { mapUpAt = now; mapUp = kakao.upBearing()
+                    kakao.read()?.get(2)?.let { mpp ->
+                        myBubble.alpha = 0.5f + 0.5f * ((mpp - 0.45) / 0.9).coerceIn(0.0, 1.0).toFloat()
+                    }
+                    o.mapUp = mapUp; if (navActive) lastMeKey = "" }
                 val hd: Float? = if (!navActive) null else if (fixedHeading) (navBearing - mapUp + 360) % 360 else heading?.let { (it - mapUp + 360) % 360 }
                 o.updateHeading(l.latitude, l.longitude, hd)
             }
@@ -182,7 +197,7 @@ class EudMapView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         kakao.recenter(me.latitude, me.longitude); return true
     }
     /** 내 위치를 잡을 때까지(최대 timeoutMs) 기다렸다가 지도를 거기로 맞추고 알려준다. 못 잡으면 false. */
-    val startupLabelsReady get() = kov?.startupLabelsReady == true
+    val startupLabelsReady get() = myBubble.visibility == VISIBLE && kov?.startupLabelsReady == true
     fun afterMapFrame(done: () -> Unit) = kakao.afterMapFrame(done)
     fun whenLocated(timeoutMs: Long, done: (Boolean) -> Unit) {
         currentReq = false

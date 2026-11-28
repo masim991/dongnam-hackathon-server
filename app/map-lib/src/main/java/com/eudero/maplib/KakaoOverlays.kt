@@ -21,7 +21,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
     private val courseLabels = lm.addLayer(LabelLayerOptions.from("courseLabels").setZOrder(10100).setCompetitionType(CompetitionType.None).setClickable(true))!!
     private val pinLayer = lm.addLayer(LabelLayerOptions.from("pins").setZOrder(10060).setCompetitionType(CompetitionType.None).setClickable(true))!!
     private val bubbles = lm.addLayer(LabelLayerOptions.from("postBubbles").setZOrder(10150).setCompetitionType(CompetitionType.None).setClickable(true))!!
-    // Keep my live position above posts and the focused warning, without taking taps.
+    // Direction indicators are map labels. The live profile bubble is drawn above the map.
     private val meLayer = lm.addLayer(LabelLayerOptions.from("me").setZOrder(10210).setCompetitionType(CompetitionType.None).setClickable(false))!!
 
     var onBackgroundTap: (() -> Boolean)? = null
@@ -321,7 +321,7 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
         }
     }
     val startupLabelsReady: Boolean
-        get() = me != null && coursesRef === courseOv.courses && cls.all { it.lines.size == it.course.lines.count { line -> line.lat.size >= 2 } } && pinsRef === pinOv.pins && pinLabels.size == expectedPinLabels
+        get() = coursesRef === courseOv.courses && cls.all { it.lines.size == it.course.lines.count { line -> line.lat.size >= 2 } } && pinsRef === pinOv.pins && pinLabels.size == expectedPinLabels
 
     fun onPinZoomChanged() {
         if (pinZoom != k.zoomLevel || kotlin.math.abs((k.cameraPosition?.rotationAngle?.toFloat() ?: 0f) - pinRotation) > 0.01f) syncPins(refreshZoom = true)
@@ -431,44 +431,9 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
     }
 
     // ---------- 내 위치 ----------
-    private var me: Label? = null; private var meArrow: Label? = null
-    private var meBmpRef: Bitmap? = null
-    private val meStyles = mutableMapOf<Int, LabelStyles>()
-    private var meOpacityStep = 8
-    private var lastFadeUpdate = 0L
-
-    private fun meStyle(step: Int): LabelStyles? {
-        val bmp = meBmpRef ?: return null
-        return meStyles.getOrPut(step) {
-            val image = if (step == 8) bmp else Bitmap.createBitmap(bmp.width, bmp.height, Bitmap.Config.ARGB_8888).also {
-                Canvas(it).drawBitmap(bmp, 0f, 0f, Paint().apply { alpha = (128 + step * 127 / 8) })
-            }
-            labelStyles(image, 0.5f, 1f)
-        }
-    }
-
-    fun refreshMeOpacity() {
-        val label = me ?: return
-        val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastFadeUpdate < 40) return
-        lastFadeUpdate = now
-        val scale = metersPerPixel()?.takeIf { it > 0 && it.isFinite() } ?: return
-        val step = (((scale - 0.45) / 0.9).coerceIn(0.0, 1.0) * 8).toInt()
-        if (step == meOpacityStep) return
-        meStyle(step)?.let { label.setStyles(it); meOpacityStep = step }
-    }
-    fun updateMe(lat: Double, lon: Double, bmp: Bitmap?, nav: Boolean, bearing: Float) {
-        if (bmp != null && bmp !== meBmpRef) {
-            meBmpRef = bmp
-            meStyles.clear()
-            me?.let { runCatching { meLayer.remove(it) } }
-            me = null
-        }
-        val styles = meStyle(meOpacityStep) ?: return
+    private var meArrow: Label? = null
+    fun updateNavigationArrow(lat: Double, lon: Double, nav: Boolean, bearing: Float) {
         val pos = ll(lat, lon)
-        if (me == null) {
-            me = runCatching { meLayer.addLabel(LabelOptions.from(pos).setStyles(styles).setClickable(false)) }.getOrNull()
-        } else me?.moveTo(pos)
         if (nav) {
             if (meArrow == null) meArrow = runCatching {
                 val a = Bitmap.createBitmap((34 * d).toInt(), (44 * d).toInt(), Bitmap.Config.ARGB_8888)
@@ -479,7 +444,6 @@ class KakaoOverlays(private val k: KakaoMap, private val ctx: Context, private v
                 meLayer.addLabel(LabelOptions.from(pos).setStyles(labelStyles(a, 0.5f, 0.5f)))
             }.getOrNull() else meArrow!!.moveTo(pos)
             meArrow?.rotateTo(Math.toRadians(bearing.toDouble()).toFloat()); meArrow?.show(false)
-            me?.changePixelOffset(0f, 0f)
         } else meArrow?.hide()
     }
 
